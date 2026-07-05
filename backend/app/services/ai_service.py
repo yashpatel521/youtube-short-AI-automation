@@ -20,6 +20,11 @@ class ScriptPackage(BaseModel):
     tags: List[str] = Field(description="List of 5-10 high-search-volume tags.")
     segments: List[ScriptSegment] = Field(description="The sequential segments of the Short. The total spoken word count of all segments combined (narration fields) must be between 50 and 70 words to guarantee a 20-30 second video.")
 
+class CustomVideoDetails(BaseModel):
+    idea_description: str = Field(description="A detailed explanation of the core concept and theme of this custom video idea.")
+    visual_prompt: str = Field(description="A detailed frame-by-frame visual motion prompt describing elements, coordinates, particle animations, or video visual flow that will be passed directly to the video generator.")
+    narration: str = Field(description="The complete spoken narration script. Spoken word count must be strictly between 50 and 70 words.")
+
 class ShortIdea(BaseModel):
     title: str = Field(description="A highly clickable, viral title for the suggested Short (under 50 chars)")
     concept: str = Field(description="The core lesson, premise, or concept of the suggested video")
@@ -253,3 +258,46 @@ Suggest exactly 10 viral Short ideas. Return them structured in JSON matching th
                 except:
                     pass
             return []
+
+    def generate_custom_details(
+        self,
+        title: str,
+        description: str,
+        api_key_override: Optional[str] = None
+    ) -> CustomVideoDetails:
+        """
+        Generates custom video details (Idea details, visual prompt, and narration) from a user-supplied title and description.
+        """
+        client = self._get_client(api_key_override)
+        if not client:
+            raise ValueError("Gemini API key is not configured. Please add it to settings.")
+
+        prompt = f"""
+You are an expert AI Video Producer. 
+I am designing a viral Short video. I will give you a title and description, and you will generate:
+1. 'idea_description': A detailed description explaining the core concept/idea and the hook strategy.
+2. 'visual_prompt': A detailed, frame-by-frame visual prompt describing particle movements, coordinates, vortexes, waves, or camera zooms to pass to the video generator.
+3. 'narration': The exact voiceover narration script. The total spoken text must be strictly between 50 and 70 words (guaranteeing a 20-30s duration).
+
+Input Video Title: "{title}"
+Input Video Description: "{description}"
+
+Task:
+Generate the CustomVideoDetails JSON package. Make the narration text highly engaging and natural.
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=CustomVideoDetails,
+                temperature=0.75,
+            ),
+        )
+
+        try:
+            data = json.loads(response.text)
+            return CustomVideoDetails(**data)
+        except Exception as e:
+            raise RuntimeError(f"Failed to generate structured custom details: {str(e)}")

@@ -27,8 +27,19 @@ export default function Quality({ backendUrl, channelData }: QualityProps) {
   const logEndRef = useRef<HTMLDivElement>(null);
 
   // Script text and scoring states
-  const [scriptInput, setScriptInput] = useState<string>("Did you know that a day on Venus is longer than a year on Venus? Venus takes two hundred and forty-three Earth days to rotate once on its axis, but only two hundred and twenty-five Earth days to complete an orbit around the Sun. This makes its day longer than its year!");
+  const [promptTitle, setPromptTitle] = useState<string>("Secret of Black Holes");
+  const [promptDescription, setPromptDescription] = useState<string>("A cosmic mystery explaining how supermassive black holes warp time and swallow stars, with dramatic particle visual flows.");
+  const [ideaDescription, setIdeaDescription] = useState<string>("The video will explore the mind-bending gravity of black holes, focusing on how supermassive vortexes warp light and space to hook space enthusiasts.");
+  const [visualPrompt, setVisualPrompt] = useState<string>("0-2s: Deep space background. A small black vortex center-frame. 2-5s: Vortex expands pulling in glowing star particles. 5-8s: Close-up on the event horizon with gravitational light lensing. 8-15s: Starry vortex zoom.");
+  const [generatingScript, setGeneratingScript] = useState<boolean>(false);
+  const [scriptInput, setScriptInput] = useState<string>("Think black holes are just giant vacuums? Think again. Their gravitational pull is so intense that not even light can escape, warping time and space around them.");
   const [backgroundSource, setBackgroundSource] = useState<string>("pexels");
+  const [pexelsQuery, setPexelsQuery] = useState<string>("abstract loop");
+  const [highlightColor, setHighlightColor] = useState<string>("#FFD700");
+  const [enableSubscribe, setEnableSubscribe] = useState<boolean>(true);
+  const [voice, setVoice] = useState<string>("en-US-EmmaMultilingualNeural");
+  const [tone, setTone] = useState<string>("Energetic");
+  const [activeTab, setActiveTab] = useState<"narration" | "visual" | "idea">("narration");
   const [reviews, setReviews] = useState<any[]>([]);
 
 
@@ -110,9 +121,50 @@ export default function Quality({ backendUrl, channelData }: QualityProps) {
     };
   }, [compiling, jobId, backendUrl]);
 
+  const handleGenerateFromPrompt = async () => {
+    if (!promptTitle.trim() || !promptDescription.trim()) {
+      alert("Please fill out both Title and Description before generating.");
+      return;
+    }
+    setGeneratingScript(true);
+    try {
+      const storedSecrets = localStorage.getItem('settings_keys');
+      let geminiKey = '';
+      if (storedSecrets) {
+        try {
+          const parsed = JSON.parse(storedSecrets);
+          geminiKey = parsed.gemini_api_key || '';
+        } catch {}
+      }
+
+      const res = await fetch(`${backendUrl}/api/script/generate-custom`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: promptTitle,
+          description: promptDescription,
+          gemini_key: geminiKey
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setIdeaDescription(data.idea_description || "");
+        setVisualPrompt(data.visual_prompt || "");
+        setScriptInput(data.narration || "");
+      } else {
+        alert("Failed to generate custom script details.");
+      }
+    } catch (err: any) {
+      alert(`AI generation failed: ${err.message}`);
+    } finally {
+      setGeneratingScript(false);
+    }
+  };
+
   const handleCompileCustomScript = async () => {
     if (!scriptInput.trim()) {
-      alert("Please enter a script text to compile.");
+      alert("Please enter a script narration text to compile.");
       return;
     }
     setCompiling(true);
@@ -121,12 +173,13 @@ export default function Quality({ backendUrl, channelData }: QualityProps) {
 
     const payload = {
       script_text: scriptInput,
-      title: "Quality Lab Test",
-      voice: "en-US-EmmaMultilingualNeural",
-      pexels_query: "abstract loop", // Tries to query loops, falls back to gradient
-      highlight_color: "#FFD700",
-      enable_subscribe: true,
-      background_source: backgroundSource
+      title: promptTitle || "Quality Lab Test",
+      voice: voice,
+      pexels_query: pexelsQuery,
+      highlight_color: highlightColor,
+      enable_subscribe: enableSubscribe,
+      background_source: backgroundSource,
+      visual_prompt: visualPrompt || undefined
     };
 
     try {
@@ -197,80 +250,244 @@ export default function Quality({ backendUrl, channelData }: QualityProps) {
         {/* Right Side: Scripts, Scoring, Evaluations & History selection */}
         <div className="flex flex-col gap-6">
           
-          {/* Custom Script Compile Laboratory */}
-          <div className="glass-panel p-6 flex flex-col gap-4">
-            <h3 className="text-base font-bold flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-pink-500 rounded-full animate-pulse" />
-              Diagnostics & Custom Script Compiler
-            </h3>
-            <p className="text-gray-400 text-xs leading-relaxed m-0">
-              Paste or write your custom test script below. Clicking compile will generate speech synthesis, overlays, progress markers, and compile a local Short video.
-            </p>
+          {/* AI Diagnostics Compiler Laboratory */}
+          <div className="glass-panel p-6 flex flex-col gap-5">
+            <div className="border-b border-white/5 pb-3">
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-pink-500 rounded-full animate-pulse" />
+                Diagnostics Compiler
+              </h3>
+              <p className="text-gray-400 text-xs mt-1 leading-relaxed">
+                Design a custom video Short. Input a Title & Description, and click generate to synthesize visual cues and voice narration.
+              </p>
+            </div>
+
+            {/* AI Prompt Input (Title & Description) */}
+            <div className="flex flex-col gap-3.5 p-4 rounded-xl bg-violet-600/5 border border-violet-500/10">
+              <span className="text-[10px] text-violet-400 font-extrabold uppercase tracking-wider block">AI Custom Video Prompt</span>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-gray-500 font-semibold">Video Title Topic</label>
+                  <input
+                    type="text"
+                    className="bg-[#0c0c16] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500/50"
+                    placeholder="e.g., Space black hole mystery"
+                    value={promptTitle}
+                    onChange={(e) => setPromptTitle(e.target.value)}
+                    disabled={generatingScript || compiling}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-gray-500 font-semibold">Video Brief Description</label>
+                  <textarea
+                    className="bg-[#0c0c16] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-violet-500/50 h-[50px] resize-none"
+                    placeholder="e.g., A vertical Short about black holes eating stars..."
+                    value={promptDescription}
+                    onChange={(e) => setPromptDescription(e.target.value)}
+                    disabled={generatingScript || compiling}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleGenerateFromPrompt}
+                className="btn-primary py-2 px-4 text-xs font-bold bg-violet-600 hover:bg-violet-700 border-none rounded-lg mt-1 w-full"
+                disabled={generatingScript || compiling || !promptTitle.trim() || !promptDescription.trim()}
+              >
+                {generatingScript ? 'Generating AI Details...' : 'AI Generate Details'}
+              </button>
+            </div>
+
+            {/* Generated Text Outputs Tab Switcher */}
             <div className="flex flex-col gap-3">
-              <textarea
-                value={scriptInput}
-                onChange={(e) => setScriptInput(e.target.value)}
-                className="w-full h-[85px] bg-[#0c0c16] border border-white/10 rounded-xl p-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 resize-none font-sans leading-relaxed"
-                placeholder="Write script content..."
-              />
-              <div className="flex justify-between items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-400 font-sans">Visual Model:</span>
+              <div className="flex border-b border-white/5 gap-1.5 p-0.5 bg-black/20 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("narration")}
+                  className={`flex-1 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${activeTab === 'narration' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  1. Narration
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("visual")}
+                  className={`flex-1 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${activeTab === 'visual' ? 'bg-pink-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  2. Visual Prompt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("idea")}
+                  className={`flex-1 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${activeTab === 'idea' ? 'bg-teal-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  3. Core Concept
+                </button>
+              </div>
+
+              <div className="bg-[#08080f] border border-white/5 rounded-xl p-3.5 flex flex-col gap-2">
+                {activeTab === 'narration' && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Editable Spoken Script Narration</span>
+                    <textarea
+                      className="w-full h-[85px] bg-[#0c0c16] border border-white/10 rounded-xl p-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 resize-none font-sans leading-relaxed"
+                      value={scriptInput}
+                      onChange={(e) => setScriptInput(e.target.value)}
+                      disabled={compiling}
+                    />
+                  </div>
+                )}
+                {activeTab === 'visual' && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Detailed Frame-by-Frame Video Visual Prompt</span>
+                    <textarea
+                      className="w-full h-[85px] bg-[#0c0c16] border border-white/10 rounded-xl p-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 resize-none font-mono text-[10px] leading-normal"
+                      value={visualPrompt}
+                      onChange={(e) => setVisualPrompt(e.target.value)}
+                      disabled={compiling}
+                    />
+                  </div>
+                )}
+                {activeTab === 'idea' && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">AI Generated Video Concept Idea</span>
+                    <textarea
+                      className="w-full h-[85px] bg-[#0c0c16] border border-white/10 rounded-xl p-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 resize-none font-sans leading-relaxed"
+                      value={ideaDescription}
+                      onChange={(e) => setIdeaDescription(e.target.value)}
+                      disabled={compiling}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Compilation Settings Grid */}
+            <div className="flex flex-col gap-4 border-t border-white/5 pt-4">
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Render Configurations</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-gray-500 font-semibold">Visual Model</label>
                   <select
                     value={backgroundSource}
                     onChange={(e) => setBackgroundSource(e.target.value)}
-                    className="bg-[#0c0c16] border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500/50"
+                    className="bg-[#0c0c16] border border-white/10 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-violet-500/50"
                   >
                     <option value="pexels">Pexels Stock Footage (Online)</option>
                     <option value="local_model">Local Procedural Model (Offline AI)</option>
                   </select>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-gray-500 font-mono">{scriptInput.length} characters</span>
-                  <button
-                    onClick={handleCompileCustomScript}
-                    className="btn-primary py-2 px-4 text-xs font-bold"
-                    disabled={compiling}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-gray-500 font-semibold">Visual Search Keyword</label>
+                  <input
+                    type="text"
+                    className="bg-[#0c0c16] border border-white/10 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-violet-500/50"
+                    value={pexelsQuery}
+                    onChange={(e) => setPexelsQuery(e.target.value)}
+                    placeholder="e.g. abstract neon loop"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-gray-500 font-semibold">Highlight Color</label>
+                  <select
+                    value={highlightColor}
+                    onChange={(e) => setHighlightColor(e.target.value)}
+                    className="bg-[#0c0c16] border border-white/10 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-violet-500/50"
                   >
-                    {compiling ? 'Compiling Video...' : 'Compile Quality Test Video'}
-                  </button>
+                    <option value="#FFD700">💛 Yellow</option>
+                    <option value="#34d399">💚 Green</option>
+                    <option value="#22d3ee">💙 Cyan</option>
+                    <option value="#f97316">🧡 Orange</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-gray-500 font-semibold">Voice Actor</label>
+                  <select
+                    value={voice}
+                    onChange={(e) => setVoice(e.target.value)}
+                    className="bg-[#0c0c16] border border-white/10 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-violet-500/50"
+                  >
+                    <option value="en-US-EmmaMultilingualNeural">Emma (US Female)</option>
+                    <option value="en-US-BrianNeural">Brian (US Male)</option>
+                    <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
+                    <option value="en-GB-RyanNeural">Ryan (UK Male)</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-gray-500 font-semibold">Voice Tone Mood</label>
+                  <input
+                    type="text"
+                    className="bg-[#0c0c16] border border-white/10 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-violet-500/50"
+                    value={tone}
+                    onChange={(e) => setTone(e.target.value)}
+                    placeholder="e.g. Energetic, Mysterious"
+                  />
+                </div>
+                <div className="flex items-center gap-2 mt-4">
+                  <input
+                    type="checkbox"
+                    id="enableSubscribeCheck"
+                    checked={enableSubscribe}
+                    onChange={(e) => setEnableSubscribe(e.target.checked)}
+                    className="rounded border-white/10 bg-[#0c0c16] text-violet-600 focus:ring-0 focus:ring-offset-0"
+                  />
+                  <label htmlFor="enableSubscribeCheck" className="text-xs text-gray-400 font-semibold select-none cursor-pointer">
+                    Enable Subscribe Overlay
+                  </label>
                 </div>
               </div>
             </div>
 
-            {/* Live Progress Logs */}
-            {jobStatus && (
-              <div className="flex flex-col gap-2 mt-2 border-t border-white/5 pt-3">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-semibold text-gray-400 font-mono">Job: {jobId?.substring(0, 8)}</span>
-                  <span className={`font-extrabold uppercase ${jobStatus.status === 'completed' ? 'text-emerald-400' : jobStatus.status === 'failed' ? 'text-red-400' : 'text-violet-400'}`}>
-                    {jobStatus.status} ({jobStatus.progress}%)
-                  </span>
-                </div>
-                <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-gradient-to-r from-violet-500 to-pink-500 h-full transition-all duration-300" style={{ width: `${jobStatus.progress}%` }} />
-                </div>
-                <div className="p-3 bg-black/60 border border-white/5 rounded-xl text-[0.65rem] font-mono text-gray-300 h-[100px] overflow-y-auto flex flex-col gap-1.5 scrollbar-thin">
-                  {jobStatus.logs && jobStatus.logs.map((log: string, idx: number) => (
-                    <div key={idx} className="leading-relaxed">
-                      <span className="text-violet-500">➜</span> {log}
-                    </div>
-                  ))}
-                  <div ref={logEndRef} />
-                </div>
-              </div>
-            )}
+            {/* Compile Button */}
+            <div className="flex justify-between items-center border-t border-white/5 pt-4">
+              <span className="text-[10px] text-gray-500 font-mono">{scriptInput.length} characters</span>
+              <button
+                onClick={handleCompileCustomScript}
+                className="btn-primary py-2.5 px-6 text-xs font-bold bg-gradient-to-r from-violet-500 to-pink-500 hover:from-violet-600 hover:to-pink-600 border-none"
+                disabled={compiling}
+              >
+                {compiling ? 'Compiling Video...' : 'Compile Video Shorts'}
+              </button>
+            </div>
           </div>
 
-          {/* Selector directory */}
+          {/* Live Progress Logs */}
+          {jobStatus && (
+            <div className="glass-panel p-6 flex flex-col gap-3">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-gray-400 font-mono">Job ID: {jobId?.substring(0, 8)}</span>
+                <span className={`font-extrabold uppercase ${jobStatus.status === 'completed' ? 'text-emerald-400' : jobStatus.status === 'failed' ? 'text-red-400' : 'text-violet-400'}`}>
+                  {jobStatus.status} ({jobStatus.progress}%)
+                </span>
+              </div>
+              <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-gradient-to-r from-violet-500 to-pink-500 h-full transition-all duration-300" style={{ width: `${jobStatus.progress}%` }} />
+              </div>
+              <div className="p-3 bg-black/60 border border-white/5 rounded-xl text-[0.65rem] font-mono text-gray-300 h-[100px] overflow-y-auto flex flex-col gap-1.5 scrollbar-thin">
+                {jobStatus.logs && jobStatus.logs.map((log: string, idx: number) => (
+                  <div key={idx} className="leading-relaxed">
+                    <span className="text-violet-500">➜</span> {log}
+                  </div>
+                ))}
+                <div ref={logEndRef} />
+              </div>
+            </div>
+          )}
+
+          {/* Bottom Card: Select Generated Video to Audit (History list) */}
           <div className="glass-panel p-6 flex flex-col gap-4">
-            <h3 className="text-base font-bold">Select Generated Video to Audit</h3>
+            <h3 className="text-base font-bold flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full" />
+              Audited Videos Directory
+            </h3>
+            <p className="text-gray-400 text-xs leading-relaxed m-0">
+              Browse, select, and preview previously compiled videos from the database history.
+            </p>
             {loading && videos.length === 0 ? (
-              <p className="text-gray-400 text-xs">Loading directory database history...</p>
+              <p className="text-gray-400 text-xs">Loading history records...</p>
             ) : videos.length === 0 ? (
-              <p className="text-gray-500 text-xs">No local videos found. Input a script above to compile!</p>
+              <p className="text-gray-500 text-xs">No local videos found. Write a prompt on the left to compile!</p>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5 max-h-[220px] overflow-y-auto pr-1">
+              <div className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
                 {videos.map((video) => {
                   const hasReview = reviews.some(r => r.filename === video.filename);
                   return (
@@ -299,7 +516,6 @@ export default function Quality({ backendUrl, channelData }: QualityProps) {
               </div>
             )}
           </div>
-
         </div>
       </div>
     </div>

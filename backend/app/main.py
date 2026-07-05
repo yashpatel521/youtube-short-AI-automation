@@ -44,6 +44,11 @@ class ScriptRequest(BaseModel):
     competitor_shorts: List[dict] = []
     gemini_key: Optional[str] = None
 
+class CustomScriptRequest(BaseModel):
+    title: str
+    description: str
+    gemini_key: Optional[str] = None
+
 class CompileRequest(BaseModel):
     script_text: str
     title: Optional[str] = None
@@ -55,6 +60,7 @@ class CompileRequest(BaseModel):
     enable_subscribe: bool = True
     pexels_key: Optional[str] = None
     background_source: str = "pexels" # "pexels" or "local_model"
+    visual_prompt: Optional[str] = None
 
 class UploadRequest(BaseModel):
     video_filename: str
@@ -186,6 +192,22 @@ def refresh_viral_ideas_endpoint(req: ViralIdeasRequest):
 
 # --- AI Script Generation Route ---
 
+@app.post("/api/script/generate-custom")
+def generate_custom_script_details(req: CustomScriptRequest):
+    """Uses Gemini API to generate custom script details (idea, visual prompt, narration) from title and description."""
+    key_override = req.gemini_key
+    try:
+        details = ai_service.generate_custom_details(
+            title=req.title,
+            description=req.description,
+            api_key_override=key_override
+        )
+        return details
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Custom details generation error: {str(e)}")
+
 @app.post("/api/script/generate")
 def generate_ai_script(req: ScriptRequest):
     """Uses Gemini API to write a 20-30s structured Shorts script."""
@@ -238,6 +260,7 @@ def run_video_compilation(job_id: str, req: CompileRequest):
             music_volume=req.music_volume,
             enable_subscribe=req.enable_subscribe,
             background_source=req.background_source,
+            visual_prompt=req.visual_prompt,
             progress_callback=update_progress
         ))
         

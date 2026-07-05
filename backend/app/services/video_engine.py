@@ -404,6 +404,7 @@ class VideoEngine:
         music_volume: float = 0.15,
         enable_subscribe: bool = True,
         background_source: str = "pexels",
+        visual_prompt: Optional[str] = None,
         progress_callback: Optional[Callable[[int], None]] = None
     ) -> Path:
         """
@@ -442,8 +443,9 @@ class VideoEngine:
 
             if background_source == "local_model":
                 print("Rendering local procedural simulation background...")
+                query_text = visual_prompt or pexels_query or script_text
                 background_clip = VideoClip(
-                    frame_function=lambda t: self._generate_local_simulation_frame(t, duration, script_text),
+                    frame_function=lambda t: self._generate_local_simulation_frame(t, duration, query_text),
                     duration=duration
                 )
                 if progress_callback:
