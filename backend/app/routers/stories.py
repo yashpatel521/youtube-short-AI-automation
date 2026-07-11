@@ -44,15 +44,21 @@ def run_story_compilation(job_id: str, req: StoryCompileRequest):
             chapter_idx=req.chapter_idx
         ))
 
+        # Calculate relative path from output directory
+        try:
+            rel_video_path = str(output_file.relative_to(video_engine.output_dir)).replace("\\", "/")
+        except Exception:
+            rel_video_path = output_file.name
+
         db_service.update_job(
             job_id,
             status="completed",
             progress=100,
             video_path=str(output_file),
-            video_filename=output_file.name,
+            video_filename=rel_video_path,
             add_log="Storybook compilation completed successfully!"
         )
-        db_service.add_history_entry(output_file.name, req.title)
+        db_service.add_history_entry(rel_video_path, req.title)
 
         # Update the SQLite database story record with generated images!
         if req.story_id is not None and req.chapter_idx is not None:
@@ -63,7 +69,7 @@ def run_story_compilation(job_id: str, req: StoryCompileRequest):
                 story["chapters"][req.chapter_idx]["scenes"] = chapters_payload
                 
                 # Also save the generated video output filename in the chapter's compiled_video!
-                story["chapters"][req.chapter_idx]["compiled_video"] = output_file.name
+                story["chapters"][req.chapter_idx]["compiled_video"] = rel_video_path
                 
                 db_service.save_story(story)
 

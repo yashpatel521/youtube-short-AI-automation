@@ -463,6 +463,16 @@ class VideoEngine:
             chapters = story_package.get("chapters", [])
             total_chapters = len(chapters)
             clips = []
+
+            # Create structured folders if story_id and chapter_idx are present
+            if story_id is not None and chapter_idx is not None:
+                voice_dir = self.temp_dir / f"story_{story_id}" / f"chapter_{chapter_idx}" / "voice"
+                videos_dir = self.temp_dir / f"story_{story_id}" / f"chapter_{chapter_idx}" / "videos"
+                voice_dir.mkdir(parents=True, exist_ok=True)
+                videos_dir.mkdir(parents=True, exist_ok=True)
+            else:
+                voice_dir = self.temp_dir
+                videos_dir = self.temp_dir
             
             # Phase 1: Ensure all scene images are generated and saved to SQLite
             print("[Compilation Phase 1] Ensuring all scene images are generated...")
@@ -572,7 +582,16 @@ class VideoEngine:
                 narration = chap["narration"]
                 print(f"[TTS] Synthesizing speech for Scene {idx + 1}/{total_chapters}...")
                 words = await self.synthesize_speech(narration, voice, f"{temp_prefix}_ch{idx}")
-                audio_path = self.temp_dir / f"voiceover_{temp_prefix}_ch{idx}.mp3"
+                original_audio_path = self.temp_dir / f"voiceover_{temp_prefix}_ch{idx}.mp3"
+                
+                if story_id is not None and chapter_idx is not None:
+                    audio_path = voice_dir / f"voiceover_ch{idx}.mp3"
+                    if original_audio_path.exists():
+                        import shutil
+                        shutil.move(str(original_audio_path), str(audio_path))
+                else:
+                    audio_path = original_audio_path
+                    
                 temp_files_to_clean.append(audio_path)
                 
                 if not audio_path.exists() or audio_path.stat().st_size == 0:
@@ -624,7 +643,13 @@ class VideoEngine:
                 progress_callback(85)
                 
             final_story_video = concatenate_videoclips(clips, method="compose")
-            output_file_path = self.output_dir / f"story_{temp_prefix}.mp4"
+            
+            if story_id is not None and chapter_idx is not None:
+                dest_folder = self.output_dir / f"story_{story_id}" / f"chapter_{chapter_idx}"
+                dest_folder.mkdir(parents=True, exist_ok=True)
+                output_file_path = dest_folder / "compiled_video.mp4"
+            else:
+                output_file_path = self.output_dir / f"story_{temp_prefix}.mp4"
             
             if progress_callback:
                 progress_callback(90)

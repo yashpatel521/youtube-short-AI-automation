@@ -162,10 +162,10 @@ def get_all_jobs_endpoint():
     """Retrieves all compiled/auto-generation jobs in the system queue."""
     return {"jobs": db_service.get_all_jobs()}
 
-@router.get("/preview/{filename}")
-def preview_video(filename: str):
+@router.get("/preview/{path:path}")
+def preview_video(path: str):
     """Streams the compiled video to the frontend player."""
-    file_path = OUTPUT_DIR / filename
+    file_path = OUTPUT_DIR / path
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Video file not found.")
     return FileResponse(str(file_path), media_type="video/mp4")
