@@ -19,6 +19,27 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<any>(null);
 
+  // YouTube Publishing SEO states
+  const [ytTitle, setYtTitle] = useState('');
+  const [ytDescription, setYtDescription] = useState('');
+  const [ytTags, setYtTags] = useState('');
+  const [ytCategory, setYtCategory] = useState('24'); // Default 24 (Entertainment)
+  const [publishDate, setPublishDate] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [suggestingMeta, setSuggestingMeta] = useState(false);
+
+  const story = stories.find(s => s.id === storyId);
+  const chapter = story?.chapters[currentIdx];
+
+  // Sync default Title & Description when the chapter loads
+  useEffect(() => {
+    if (chapter) {
+      setYtTitle(chapter.title || 'My Cool Animated Short');
+      const sceneDescriptions = chapter.scenes?.map((s: any) => s.narration).filter(Boolean).join('\n') || '';
+      setYtDescription(`Watch this epic segment from "${story?.title || 'Story Studio'}":\n\n${sceneDescriptions.substring(0, 250)}...`);
+    }
+  }, [chapter, story]);
+
   useEffect(() => {
     if (!activeJobId) return;
 
@@ -53,8 +74,7 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
     return () => clearInterval(interval);
   }, [activeJobId]);
 
-  const story = stories.find(s => s.id === storyId);
-  const chapter = story?.chapters[currentIdx];
+
 
   if (!story || !chapter) {
     return (
@@ -252,6 +272,100 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
     }
   };
 
+  const handleSuggestMetadata = async () => {
+    if (!ytTitle || !ytDescription) return;
+    setSuggestingMeta(true);
+    setToast(null);
+    try {
+      const res = await fetch(`${backendUrl}/api/youtube/suggest-metadata`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: ytTitle,
+          description: ytDescription
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.tags) {
+          setYtTags(data.tags.join(', '));
+        }
+        if (data.category_id) {
+          setYtCategory(data.category_id);
+        }
+        setToast({ message: 'AI SEO tags and category generated successfully!', type: 'success' });
+      } else {
+        const data = await res.json();
+        setToast({ message: data.detail || 'Failed to generate SEO metadata.', type: 'error' });
+      }
+    } catch (err: any) {
+      setToast({ message: err.message || 'Error communicating with SEO API.', type: 'error' });
+    } finally {
+      setSuggestingMeta(false);
+    }
+  };
+
+  const handlePublishVideo = async () => {
+    if (!chapter.compiled_video) return;
+    setPublishing(true);
+    setToast({ message: 'Uploading compiled video to YouTube as a Short...', type: 'success' });
+    try {
+      const res = await fetch(`${backendUrl}/api/youtube/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          video_filename: chapter.compiled_video,
+          title: ytTitle,
+          description: ytDescription,
+          tags: ytTags.split(',').map(t => t.trim()).filter(Boolean),
+          category_id: ytCategory,
+          privacy_status: 'public'
+        })
+      });
+      if (res.ok) {
+        setToast({ message: 'Successfully published short to YouTube!', type: 'success' });
+      } else {
+        const data = await res.json();
+        setToast({ message: data.detail || 'YouTube upload failed.', type: 'error' });
+      }
+    } catch (err: any) {
+      setToast({ message: err.message || 'Error communicating with upload API.', type: 'error' });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const handleScheduleVideo = async () => {
+    if (!chapter.compiled_video || !publishDate) return;
+    setPublishing(true);
+    setToast(null);
+    try {
+      const res = await fetch(`${backendUrl}/api/youtube/schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          video_filename: chapter.compiled_video,
+          title: ytTitle,
+          description: ytDescription,
+          tags: ytTags.split(',').map(t => t.trim()).filter(Boolean),
+          category_id: ytCategory,
+          publish_at: new Date(publishDate).toISOString()
+        })
+      });
+      if (res.ok) {
+        setToast({ message: 'Successfully scheduled video upload in compilation queue!', type: 'success' });
+        setPublishDate(''); // Reset after schedule
+      } else {
+        const data = await res.json();
+        setToast({ message: data.detail || 'YouTube schedule failed.', type: 'error' });
+      }
+    } catch (err: any) {
+      setToast({ message: err.message || 'Error communicating with schedule API.', type: 'error' });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
 
 
   return (
@@ -338,16 +452,128 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
 
       {/* Playable Chapter Preview */}
       {chapter.compiled_video && (
-        <div className="glass-panel p-5 border border-white/5 rounded-2xl flex flex-col gap-3">
-          <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-            🎬 Playable Chapter Preview
-          </h4>
-          <div className="aspect-video w-full max-w-2xl bg-black rounded-xl overflow-hidden border border-white/5 shadow-2xl relative">
-            <video 
-              src={`${backendUrl}/api/video/preview/${chapter.compiled_video}`} 
-              controls 
-              className="w-full h-full object-contain" 
-            />
+        <div className="flex flex-col gap-6">
+          <div className="glass-panel p-5 border border-white/5 rounded-2xl flex flex-col gap-3">
+            <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+              🎬 Playable Chapter Preview
+            </h4>
+            <div className="aspect-video w-full max-w-2xl bg-black rounded-xl overflow-hidden border border-white/5 shadow-2xl relative">
+              <video 
+                src={`${backendUrl}/api/video/preview/${chapter.compiled_video}`} 
+                controls 
+                className="w-full h-full object-contain" 
+              />
+            </div>
+          </div>
+
+          <div className="glass-panel p-6 border border-white/5 rounded-2xl flex flex-col gap-5 bg-white/[0.01]">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                🚀 YouTube SEO & Publisher Panel
+              </h4>
+              <button
+                type="button"
+                onClick={handleSuggestMetadata}
+                disabled={suggestingMeta || !ytTitle || !ytDescription}
+                className="text-xs font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 bg-transparent border-0 cursor-pointer disabled:opacity-40"
+              >
+                {suggestingMeta ? '⚡ Generating SEO...' : '✨ AI Generate Tags & Category'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-extrabold uppercase text-gray-400 tracking-wide">Video Title</label>
+                <input
+                  type="text"
+                  className="form-input text-xs py-2 px-3 bg-black/35 text-white"
+                  placeholder="Enter YouTube title..."
+                  value={ytTitle}
+                  onChange={(e) => setYtTitle(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-extrabold uppercase text-gray-400 tracking-wide">Category</label>
+                <select
+                  className="form-input text-xs py-2 px-3 bg-black/35 text-white border-0"
+                  value={ytCategory}
+                  onChange={(e) => setYtCategory(e.target.value)}
+                >
+                  <option value="24">Entertainment</option>
+                  <option value="27">Education</option>
+                  <option value="28">Science & Technology</option>
+                  <option value="20">Gaming</option>
+                  <option value="22">People & Blogs</option>
+                  <option value="1">Film & Animation</option>
+                  <option value="15">Pets & Animals</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-extrabold uppercase text-gray-400 tracking-wide">Description</label>
+              <textarea
+                className="form-input text-xs min-h-[80px] bg-black/35 text-gray-100"
+                placeholder="Enter video description for YouTube search optimization..."
+                value={ytDescription}
+                onChange={(e) => setYtDescription(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-extrabold uppercase text-gray-400 tracking-wide">Tags (Keywords, comma-separated)</label>
+              <input
+                type="text"
+                className="form-input text-xs py-2 px-3 bg-black/35 text-white"
+                placeholder="e.g. animation, cartoon, fox, kids story"
+                value={ytTags}
+                onChange={(e) => setYtTags(e.target.value)}
+              />
+              {ytTags.split(',').filter(t => t.trim().length > 0).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {ytTags.split(',').map((t, idx) => (
+                    <span key={idx} className="text-[9px] font-bold text-violet-300 bg-violet-950/30 border border-violet-500/10 px-2 py-0.5 rounded-full">
+                      #{t.trim()}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col md:flex-row items-end md:items-center justify-between border-t border-white/5 pt-4 mt-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-extrabold uppercase text-gray-400 tracking-wide">Schedule Publish Time (Optional)</label>
+                <input
+                  type="datetime-local"
+                  className="form-input text-xs py-1.5 px-3 bg-black/35 text-white w-auto border-0"
+                  value={publishDate}
+                  onChange={(e) => setPublishDate(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                {publishDate ? (
+                  <button
+                    type="button"
+                    onClick={handleScheduleVideo}
+                    disabled={publishing}
+                    className="btn-secondary text-xs font-bold py-2 px-4 flex items-center gap-1.5"
+                  >
+                    📅 Schedule Upload
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handlePublishVideo}
+                    disabled={publishing}
+                    className="btn-primary text-xs font-bold py-2 px-4 flex items-center gap-1.5"
+                  >
+                    🚀 Publish Now
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
