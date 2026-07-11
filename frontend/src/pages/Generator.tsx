@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import Header from '../components/Header';
+import PageShell from '../components/PageShell';
 
 interface Segment {
   video_description: string;
@@ -38,6 +38,7 @@ export default function Generator({ backendUrl, channelData, settings: _settings
   const [highlightColor, setHighlightColor] = useState('#FFD700');
   const [pexelsQuery, setPexelsQuery] = useState('');
   const [enableSubscribe, _setEnableSubscribe] = useState(true);
+  const [backgroundSource, setBackgroundSource] = useState('pexels');
 
   // Compile job states
   const [compiling, setCompiling] = useState(false);
@@ -50,8 +51,30 @@ export default function Generator({ backendUrl, channelData, settings: _settings
   const [uploadPrivacy, setUploadPrivacy] = useState('private');
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadDesc, setUploadDesc] = useState('');
+  const [uploadTags, setUploadTags] = useState('');
+  const [uploadCategory, setUploadCategory] = useState('24');
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [publishAt, setPublishAt] = useState('');
+  const [fetchingMetadata, setFetchingMetadata] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<{ id: string; title: string }[]>([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch(`${backendUrl}/api/youtube/categories`);
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data.categories || []);
+        }
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      }
+    };
+    fetchCategories();
+  }, [backendUrl]);
+
 
   // Read competitor context from sessionStorage if redirected from research
   useEffect(() => {
@@ -114,6 +137,26 @@ export default function Generator({ backendUrl, channelData, settings: _settings
     }
   }, [jobStatus?.logs]);
 
+  const fetchMetadataSuggestions = async (title: string, desc: string) => {
+    setFetchingMetadata(true);
+    try {
+      const res = await fetch(`${backendUrl}/api/youtube/suggest-metadata`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description: desc })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUploadTags(data.tags.join(', '));
+        setUploadCategory(data.category_id);
+      }
+    } catch (err) {
+      console.error('Error fetching metadata suggestions:', err);
+    } finally {
+      setFetchingMetadata(false);
+    }
+  };
+
   // Poll compilation job status
   useEffect(() => {
     let pollInterval: any = null;
@@ -129,8 +172,11 @@ export default function Generator({ backendUrl, channelData, settings: _settings
               clearInterval(pollInterval);
               // Prepopulate upload fields
               if (data.status === 'completed' && scriptData) {
-                setUploadTitle(scriptData.title);
-                setUploadDesc(`${scriptData.description}\n\nIf you want to know how to generate this video, comment "facts"`);
+                const finalTitle = scriptData.title;
+                const finalDesc = `${scriptData.description}\n\nIf you want to know how to generate this video, comment "facts"`;
+                setUploadTitle(finalTitle);
+                setUploadDesc(finalDesc);
+                fetchMetadataSuggestions(finalTitle, finalDesc);
               }
             }
           }
@@ -221,7 +267,10 @@ export default function Generator({ backendUrl, channelData, settings: _settings
           enable_subscribe: enableSubscribe,
           pexels_query: pexelsQuery || topic || 'abstract loop',
           script_text: scriptText,
-          title: scriptData.title
+          title: scriptData.title,
+          background_source: backgroundSource,
+          visual_prompt: pexelsQuery || topic || 'abstract loop',
+          segments: scriptData.segments
         }),
       });
 
@@ -256,24 +305,31 @@ export default function Generator({ backendUrl, channelData, settings: _settings
     setUploadSuccess(null);
     setUploadError(null);
 
+    const tagsArray = uploadTags.split(',').map(t => t.trim()).filter(Boolean);
+
     try {
-      const res = await fetch(`${backendUrl}/api/youtube/upload`, {
+      const endpoint = isScheduled ? '/api/youtube/schedule' : '/api/youtube/upload';
+      const body = {
+        video_filename: jobStatus.video_filename,
+        title: uploadTitle,
+        description: uploadDesc,
+        tags: tagsArray,
+        category_id: uploadCategory,
+        ...(isScheduled ? { publish_at: publishAt } : { privacy_status: uploadPrivacy })
+      };
+
+      const res = await fetch(`${backendUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          video_filename: jobStatus.video_filename,
-          title: uploadTitle,
-          description: uploadDesc,
-          privacy_status: uploadPrivacy
-        })
+        body: JSON.stringify(body)
       });
 
       if (res.ok) {
         const data = await res.json();
-        setUploadSuccess(data.video_id);
+        setUploadSuccess(isScheduled ? 'scheduled' : data.video_id);
       } else {
         const data = await res.json();
-        setUploadError(data.detail || 'Upload failed.');
+        setUploadError(data.detail || 'Action failed.');
       }
     } catch (err: any) {
       setUploadError(err.message || 'Connection lost.');
@@ -294,15 +350,11 @@ export default function Generator({ backendUrl, channelData, settings: _settings
   const wordCountStatus = wordCount >= 50 && wordCount <= 70 ? 'success' : 'warning';
 
   return (
-    <div className="animate-slide-up grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 items-start">
+    <PageShell title="Video Studio">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
       
       {/* Left Workspace Panel */}
       <div className="flex flex-col gap-6">
-        <Header
-          title="Creator Studio"
-          description="Create optimized Short video packages. Synthesize AI voices and overlays."
-          channelData={channelData}
-        />
 
         {/* AI Prompt Input Card */}
         <div className="glass-panel p-6 flex flex-col gap-4">
@@ -443,6 +495,19 @@ export default function Generator({ backendUrl, channelData, settings: _settings
                 </div>
 
                 <div>
+                  <label className="text-xs text-gray-500 block mb-1">Visual Model</label>
+                  <select
+                    className="form-select py-2 px-3 w-[220px]"
+                    value={backgroundSource}
+                    onChange={(e) => setBackgroundSource(e.target.value)}
+                  >
+                    <option value="pexels">Pexels Stock Footage (Online)</option>
+                    <option value="local_model">Local Procedural Model (Offline AI)</option>
+                    <option value="ai_video">AI Text-to-Video (Replicate Wan 2.1 720p)</option>
+                  </select>
+                </div>
+
+                <div>
                   <label className="text-xs text-gray-500 block mb-1">Visual Search Keyword</label>
                   <input
                     type="text"
@@ -541,20 +606,29 @@ export default function Generator({ backendUrl, channelData, settings: _settings
             
             {uploadSuccess ? (
               <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm flex flex-col gap-2">
-                <div><strong>Short published successfully!</strong></div>
-                <a
-                  href={`https://youtube.com/watch?v=${uploadSuccess}`} 
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-violet-400 font-semibold underline hover:text-violet-300"
-                >
-                  View Video on YouTube
-                </a>
+                {uploadSuccess === 'scheduled' ? (
+                  <div>
+                    <strong>Short scheduled successfully!</strong>
+                    <p className="text-gray-400 text-xs mt-1">The background scheduler will post your video at the specified time.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div><strong>Short published successfully!</strong></div>
+                    <a
+                      href={`https://youtube.com/watch?v=${uploadSuccess}`} 
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-violet-400 font-semibold underline hover:text-violet-300"
+                    >
+                      View Video on YouTube
+                    </a>
+                  </>
+                )}
               </div>
             ) : (
               <>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-400">Short Title</label>
+                  <label className="text-xs text-gray-400 font-semibold">Short Title</label>
                   <input
                     type="text"
                     className="form-input py-2 px-3 text-xs"
@@ -564,40 +638,105 @@ export default function Generator({ backendUrl, channelData, settings: _settings
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-400">Description</label>
+                  <label className="text-xs text-gray-400 font-semibold">Description</label>
                   <textarea
                     className="form-textarea py-2 px-3 text-xs"
-                    rows={3}
+                    rows={2}
                     value={uploadDesc}
                     onChange={(e) => setUploadDesc(e.target.value)}
                   />
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-400">Privacy Status</label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs text-gray-400 font-semibold">Tags (comma-separated)</label>
+                    {fetchingMetadata && <span className="text-[10px] text-violet-400 animate-pulse">Analyzing...</span>}
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input py-2 px-3 text-xs"
+                    placeholder="e.g. hack, lifehacks, tech"
+                    value={uploadTags}
+                    onChange={(e) => setUploadTags(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-400 font-semibold">YouTube Category</label>
                   <select
                     className="form-select py-2 px-3 text-xs"
-                    value={uploadPrivacy}
-                    onChange={(e) => setUploadPrivacy(e.target.value)}
+                    value={uploadCategory}
+                    onChange={(e) => setUploadCategory(e.target.value)}
                   >
-                    <option value="private">🔒 Private</option>
-                    <option value="unlisted">🔗 Unlisted</option>
-                    <option value="public">🌐 Public</option>
+                    {categories.length > 0 ? (
+                      categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.title}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="24">Entertainment</option>
+                        <option value="22">People & Blogs</option>
+                        <option value="27">Education</option>
+                        <option value="28">Science & Technology</option>
+                        <option value="23">Comedy</option>
+                        <option value="10">Music</option>
+                        <option value="20">Gaming</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
+                <div className="flex items-center gap-2 py-1">
+                  <input
+                    type="checkbox"
+                    id="schedule-toggle"
+                    className="rounded border-white/10 bg-[#0c0c16] text-violet-600 focus:ring-0 w-3.5 h-3.5"
+                    checked={isScheduled}
+                    onChange={(e) => setIsScheduled(e.target.checked)}
+                  />
+                  <label htmlFor="schedule-toggle" className="text-xs text-gray-300 font-bold select-none cursor-pointer">
+                    Schedule for later upload
+                  </label>
+                </div>
+
+                {isScheduled ? (
+                  <div className="flex flex-col gap-1 animate-slide-up">
+                    <label className="text-xs text-gray-400 font-semibold">Publish Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      className="form-input py-2 px-3 text-xs text-white"
+                      value={publishAt}
+                      onChange={(e) => setPublishAt(e.target.value)}
+                      required
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-400 font-semibold">Privacy Status</label>
+                    <select
+                      className="form-select py-2 px-3 text-xs"
+                      value={uploadPrivacy}
+                      onChange={(e) => setUploadPrivacy(e.target.value)}
+                    >
+                      <option value="private">🔒 Private</option>
+                      <option value="unlisted">🔗 Unlisted</option>
+                      <option value="public">🌐 Public</option>
+                    </select>
+                  </div>
+                )}
+
                 {uploadError && (
-                  <div className="text-xs text-red-400">
-                    <strong>Upload failed:</strong> {uploadError}
+                  <div className="text-xs text-red-400 p-2 rounded bg-red-500/10 border border-red-500/20">
+                    <strong>Action failed:</strong> {uploadError}
                   </div>
                 )}
 
                 <button
                   onClick={handleUpload}
-                  className="btn-primary mt-1.5 w-full justify-center"
-                  disabled={isUploading || !uploadTitle}
+                  className="btn-primary mt-1.5 w-full justify-center py-2.5"
+                  disabled={isUploading || !uploadTitle || (isScheduled && !publishAt)}
                 >
-                  {isUploading ? 'Publishing Short...' : 'Publish to YouTube'}
+                  {isUploading ? 'Processing...' : isScheduled ? 'Schedule Upload' : 'Publish Short'}
                 </button>
               </>
             )}
@@ -605,5 +744,6 @@ export default function Generator({ backendUrl, channelData, settings: _settings
         )}
       </div>
     </div>
+    </PageShell>
   );
 }

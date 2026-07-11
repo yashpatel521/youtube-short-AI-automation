@@ -7,7 +7,7 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 
-from app.config import CLIENT_SECRETS_FILE, TOKEN_FILE
+from app.config import CLIENT_SECRETS_FILE, TOKEN_FILE, YOUTUBE_CATEGORIES
 
 # YouTube API Scopes required for analytics and uploading
 SCOPES = [
@@ -133,6 +133,17 @@ class YouTubeService:
                     id=",".join(video_ids)
                 ).execute()
 
+                categories_map = YOUTUBE_CATEGORIES.copy()
+                try:
+                    categories_res = youtube.videoCategories().list(
+                        part="snippet",
+                        regionCode="US"
+                    ).execute()
+                    for cat in categories_res.get("items", []):
+                        categories_map[cat["id"]] = cat["snippet"]["title"]
+                except Exception as e:
+                    print(f"Error fetching YouTube categories dynamically: {e}")
+
                 for item in videos_response.get("items", []):
                     # We classify a video as a Short if it is less than 65 seconds
                     # Duration format is ISO 8601 (e.g., PT23S, PT1M5S)
@@ -151,6 +162,7 @@ class YouTubeService:
 
                     # Add video to list if it fits the Shorts criteria
                     if seconds <= 65:
+                        cat_id = item["snippet"].get("categoryId", "24")
                         shorts.append({
                             "id": item["id"],
                             "title": item["snippet"]["title"],
@@ -160,7 +172,9 @@ class YouTubeService:
                             "likes": int(item["statistics"].get("likeCount", 0)),
                             "comments": int(item["statistics"].get("commentCount", 0)),
                             "duration": seconds,
-                            "tags": item["snippet"].get("tags", [])
+                            "tags": item["snippet"].get("tags", []),
+                            "category_id": cat_id,
+                            "category_name": categories_map.get(cat_id, "Entertainment")
                         })
 
             return {
@@ -314,7 +328,8 @@ class YouTubeService:
         title: str,
         description: str,
         tags: List[str],
-        privacy_status: str = "private"
+        privacy_status: str = "public",
+        category_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Uploads a video file directly to YouTube and sets tags / Shorts metadata.
@@ -330,10 +345,10 @@ class YouTubeService:
                     "title": title,
                     "description": f"{description}\n\n#shorts",
                     "tags": tags,
-                    "categoryId": "22"  # People & Blogs
+                    "categoryId": category_id or "22"
                 },
                 "status": {
-                    "privacyStatus": privacy_status,
+                    "privacyStatus": privacy_status or "public",
                     "selfDeclaredMadeForKids": False
                 }
             }

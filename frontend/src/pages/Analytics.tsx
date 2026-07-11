@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import Header from "../components/Header";
+import PageShell from "../components/PageShell";
 
 interface CompetitorVideo {
   id: string;
@@ -15,14 +15,12 @@ interface CompetitorVideo {
 interface AnalyticsProps {
   backendUrl: string;
   youtubeAuthenticated: boolean;
-  channelData?: any;
   onNavigate: (tab: 'dashboard' | 'generator' | 'library' | 'analytics' | 'ideas' | 'quality' | 'settings') => void;
 }
 
 export default function Analytics({
   backendUrl,
   youtubeAuthenticated,
-  channelData,
   onNavigate,
 }: AnalyticsProps) {
   const [keyword, setKeyword] = useState("");
@@ -89,13 +87,7 @@ export default function Analytics({
   const popularKeywords = getPopularKeywords();
 
   return (
-    <div className="animate-slide-up flex flex-col gap-8">
-      {/* Header */}
-      <Header
-        title="Competitor Research"
-        description="Search competitor Shorts to analyze trending topics, keyword rankings, tag combinations, and engagement rates."
-        channelData={channelData}
-      />
+    <PageShell title="Competitors">
 
       {!youtubeAuthenticated && (
         <div className="p-3 px-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-sm leading-relaxed mb-1">
@@ -269,6 +261,6 @@ export default function Analytics({
           )
         )}
       </>
-    </div>
+    </PageShell>
   );
 }

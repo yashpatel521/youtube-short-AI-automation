@@ -11,3 +11,5 @@ pydantic>=2.0.0
 google-genai>=2.0.0
 python-dotenv>=1.0.0
 python-multipart>=0.0.9
+replicate>=1.4.0
+

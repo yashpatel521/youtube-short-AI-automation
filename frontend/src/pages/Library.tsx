@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Header from '../components/Header';
+import PageShell from '../components/PageShell';
 
 interface HistoryItem {
   id: number;
@@ -14,10 +14,9 @@ interface LibraryProps {
   backendUrl: string;
   youtubeAuthenticated: boolean;
   onNavigate: (tab: 'dashboard' | 'generator' | 'library' | 'analytics' | 'ideas' | 'settings') => void;
-  channelData?: any;
 }
 
-export default function Library({ backendUrl, youtubeAuthenticated, onNavigate, channelData }: LibraryProps) {
+export default function Library({ backendUrl, youtubeAuthenticated, onNavigate }: LibraryProps) {
   const [videos, setVideos] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activePreview, setActivePreview] = useState<string | null>(null);
@@ -28,9 +27,30 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate, 
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadDesc, setUploadDesc] = useState('');
   const [uploadPrivacy, setUploadPrivacy] = useState('private');
+  const [uploadTags, setUploadTags] = useState('');
+  const [uploadCategory, setUploadCategory] = useState('24');
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [publishAt, setPublishAt] = useState('');
+  const [fetchingMetadata, setFetchingMetadata] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<{ id: string; title: string }[]>([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch(`${backendUrl}/api/youtube/categories`);
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data.categories || []);
+        }
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      }
+    };
+    fetchCategories();
+  }, [backendUrl]);
 
   const fetchVideos = async () => {
     setLoading(true);
@@ -47,17 +67,47 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate, 
     }
   };
 
+  const fetchMetadataSuggestions = async (title: string, desc: string) => {
+    setFetchingMetadata(true);
+    try {
+      const res = await fetch(`${backendUrl}/api/youtube/suggest-metadata`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description: desc })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUploadTags(data.tags.join(', '));
+        setUploadCategory(data.category_id);
+      }
+    } catch (err) {
+      console.error('Error fetching metadata suggestions:', err);
+    } finally {
+      setFetchingMetadata(false);
+    }
+  };
+
   useEffect(() => {
     fetchVideos();
   }, [backendUrl]);
 
   const handleOpenUpload = (video: HistoryItem) => {
     setUploadVideo(video);
-    setUploadTitle(video.title.replace('...', ''));
-    setUploadDesc('If you want to know how to generate this video, comment "facts"');
+    const initialTitle = video.title.replace('...', '');
+    const initialDesc = 'If you want to know how to generate this video, comment "facts"';
+    setUploadTitle(initialTitle);
+    setUploadDesc(initialDesc);
+    setUploadPrivacy('private');
+    setUploadTags('');
+    setUploadCategory('24');
+    setIsScheduled(false);
+    setPublishAt('');
     setUploadSuccess(null);
     setUploadError(null);
+    
+    fetchMetadataSuggestions(initialTitle, initialDesc);
   };
+
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,25 +116,32 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate, 
     setUploadSuccess(null);
     setUploadError(null);
 
+    const tagsArray = uploadTags.split(',').map(t => t.trim()).filter(Boolean);
+
     try {
-      const res = await fetch(`${backendUrl}/api/youtube/upload`, {
+      const endpoint = isScheduled ? '/api/youtube/schedule' : '/api/youtube/upload';
+      const body = {
+        video_filename: uploadVideo.filename,
+        title: uploadTitle,
+        description: uploadDesc,
+        tags: tagsArray,
+        category_id: uploadCategory,
+        ...(isScheduled ? { publish_at: publishAt } : { privacy_status: uploadPrivacy })
+      };
+
+      const res = await fetch(`${backendUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          video_filename: uploadVideo.filename,
-          title: uploadTitle,
-          description: uploadDesc,
-          privacy_status: uploadPrivacy
-        })
+        body: JSON.stringify(body)
       });
 
       if (res.ok) {
         const data = await res.json();
-        setUploadSuccess(data.video_id);
+        setUploadSuccess(isScheduled ? 'scheduled' : data.video_id);
         fetchVideos(); // Refresh statuses
       } else {
         const data = await res.json();
-        setUploadError(data.detail || 'Upload failed.');
+        setUploadError(data.detail || 'Action failed.');
       }
     } catch (err: any) {
       setUploadError(err.message || 'Error connecting to upload API.');
@@ -121,41 +178,21 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate, 
   };
 
   return (
-    <div className="animate-slide-up flex flex-col gap-8">
-      {/* Page Header */}
-      <Header
-        title="Video Gallery"
-        description="Browse your local vertical Short creations and publish them to YouTube."
-        channelData={channelData}
-      >
-        {videos.length > 0 && (
-          <div className="flex bg-white/5 border border-white/5 p-1 rounded-xl gap-1">
-            <button 
-              onClick={() => setViewMode('grid')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${viewMode === 'grid' ? 'bg-violet-600 text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <rect x="3" y="3" width="7" height="7" />
-                <rect x="14" y="3" width="7" height="7" />
-                <rect x="14" y="14" width="7" height="7" />
-                <rect x="3" y="14" width="7" height="7" />
-              </svg>
+    <PageShell
+      title="Video Gallery"
+      headerActions={
+        videos.length > 0 ? (
+          <div className="flex bg-white/5 border border-white/5 p-0.5 rounded-lg gap-0.5">
+            <button onClick={() => setViewMode('grid')} className={`px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${viewMode === 'grid' ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:text-white'}`}>
               Grid
             </button>
-            <button 
-              onClick={() => setViewMode('table')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${viewMode === 'table' ? 'bg-violet-600 text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
+            <button onClick={() => setViewMode('table')} className={`px-2.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${viewMode === 'table' ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:text-white'}`}>
               Table
             </button>
           </div>
-        )}
-      </Header>
+        ) : undefined
+      }
+    >
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -401,18 +438,29 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate, 
                   </svg>
                 </div>
                 <div>
-                  <h4 className="font-bold text-lg text-emerald-400">Published Successfully!</h4>
-                  <p className="text-gray-400 text-sm mt-1">Your video is now live on YouTube Shorts.</p>
+                  {uploadSuccess === 'scheduled' ? (
+                    <>
+                      <h4 className="font-bold text-lg text-emerald-400">Scheduled Successfully!</h4>
+                      <p className="text-gray-400 text-sm mt-1">Your video is queued and will be published automatically.</p>
+                    </>
+                  ) : (
+                    <>
+                      <h4 className="font-bold text-lg text-emerald-400">Published Successfully!</h4>
+                      <p className="text-gray-400 text-sm mt-1">Your video is now live on YouTube Shorts.</p>
+                    </>
+                  )}
                 </div>
                 <div className="flex gap-3 mt-2 w-full">
-                  <a 
-                    href={`https://youtube.com/watch?v=${uploadSuccess}`} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="btn-primary flex-1 justify-center"
-                  >
-                    View on YouTube
-                  </a>
+                  {uploadSuccess !== 'scheduled' && (
+                    <a 
+                      href={`https://youtube.com/watch?v=${uploadSuccess}`} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="btn-primary flex-1 justify-center"
+                    >
+                      View on YouTube
+                    </a>
+                  )}
                   <button 
                     onClick={() => {
                       setUploadVideo(null);
@@ -441,14 +489,77 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate, 
                 <div>
                   <label className="text-xs text-gray-400 block mb-1.5 font-bold">Description</label>
                   <textarea
-                    rows={4}
+                    rows={2}
                     className="form-input text-sm w-full py-2.5 px-3.5 resize-none"
                     value={uploadDesc}
                     onChange={(e) => setUploadDesc(e.target.value)}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="text-xs text-gray-400 font-bold">Tags (comma-separated)</label>
+                    {fetchingMetadata && <span className="text-[10px] text-violet-400 animate-pulse">Analyzing...</span>}
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input text-sm w-full py-2.5 px-3.5"
+                    placeholder="e.g. tech, coding, learning"
+                    value={uploadTags}
+                    onChange={(e) => setUploadTags(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1.5 font-bold">YouTube Category</label>
+                  <select
+                    className="form-input text-sm w-full py-2.5 px-3"
+                    value={uploadCategory}
+                    onChange={(e) => setUploadCategory(e.target.value)}
+                  >
+                    {categories.length > 0 ? (
+                      categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.title}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="24">Entertainment</option>
+                        <option value="22">People & Blogs</option>
+                        <option value="27">Education</option>
+                        <option value="28">Science & Technology</option>
+                        <option value="23">Comedy</option>
+                        <option value="10">Music</option>
+                        <option value="20">Gaming</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 py-1">
+                  <input
+                    type="checkbox"
+                    id="lib-schedule-toggle"
+                    className="rounded border-white/10 bg-[#0c0c16] text-violet-600 focus:ring-0 w-3.5 h-3.5"
+                    checked={isScheduled}
+                    onChange={(e) => setIsScheduled(e.target.checked)}
+                  />
+                  <label htmlFor="lib-schedule-toggle" className="text-xs text-gray-300 font-bold select-none cursor-pointer">
+                    Schedule for later upload
+                  </label>
+                </div>
+
+                {isScheduled ? (
+                  <div className="flex flex-col gap-1.5 animate-slide-up">
+                    <label className="text-xs text-gray-400 font-bold">Publish Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      className="form-input text-sm w-full py-2.5 px-3.5 text-white"
+                      value={publishAt}
+                      onChange={(e) => setPublishAt(e.target.value)}
+                      required
+                    />
+                  </div>
+                ) : (
                   <div>
                     <label className="text-xs text-gray-400 block mb-1.5 font-bold">Visibility Status</label>
                     <select
@@ -461,11 +572,11 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate, 
                       <option value="public">Public</option>
                     </select>
                   </div>
-                </div>
+                )}
 
                 {uploadError && (
                   <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl">
-                    {uploadError}
+                    <strong>Action failed:</strong> {uploadError}
                   </div>
                 )}
 
@@ -481,9 +592,9 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate, 
                   <button 
                     type="submit" 
                     className="btn-primary py-2.5 px-6"
-                    disabled={isUploading}
+                    disabled={isUploading || (isScheduled && !publishAt)}
                   >
-                    {isUploading ? 'Publishing video...' : 'Publish Short'}
+                    {isUploading ? 'Processing...' : isScheduled ? 'Schedule Upload' : 'Publish Short'}
                   </button>
                 </div>
               </form>
@@ -491,6 +602,6 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate, 
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

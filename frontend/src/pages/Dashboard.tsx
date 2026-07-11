@@ -1,5 +1,5 @@
 import React from 'react';
-import Header from '../components/Header';
+import PageShell from '../components/PageShell';
 
 interface ShortVideo {
   id: string;
@@ -9,6 +9,7 @@ interface ShortVideo {
   comments: number;
   publishedAt: string;
   duration: number;
+  category_name?: string;
 }
 
 interface DashboardProps {
@@ -118,28 +119,21 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
   const bestVideo = channelData?.recent_shorts ? getBestPerformingVideo(channelData.recent_shorts) : null;
 
   return (
-    <div className="animate-slide-up flex flex-col gap-8">
-      
-      {/* Page Header */}
-      <Header
-        title="Channel Dashboard"
-        description="Welcome to your automated shorts creator panel. Review statistics and edit scripts."
-        channelData={channelData}
-      >
-        {youtubeAuthenticated && (
-          <button onClick={onRefresh} className="btn-secondary px-[18px] py-[10px]" disabled={loading}>
-            <svg 
-              className={loading ? 'animate-spin' : ''} 
-              width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-            >
-              <path d="M23 4v6h-6" />
-              <path d="M1 20v-6h6" />
+    <PageShell
+      title="Dashboard"
+      headerActions={
+        youtubeAuthenticated ? (
+          <button onClick={onRefresh} className="btn-secondary text-xs py-2 px-3" disabled={loading}>
+            <svg className={loading ? 'animate-spin' : ''} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M23 4v6h-6" /><path d="M1 20v-6h6" />
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
             </svg>
-            Refresh Metrics
+            Refresh
           </button>
-        )}
-      </Header>
+        ) : undefined
+      }
+    >
+      <div className="flex flex-col gap-6">
 
       {/* Connection Check Banner */}
       {!youtubeAuthenticated && !channelData ? (
@@ -178,7 +172,8 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                       views: 185200,
                       likes: 12400,
                       comments: 420,
-                      duration: 24
+                      duration: 24,
+                      category_name: "Science & Technology"
                     },
                     {
                       id: "mock2",
@@ -187,7 +182,8 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                       views: 94100,
                       likes: 6800,
                       comments: 210,
-                      duration: 28
+                      duration: 28,
+                      category_name: "Education"
                     },
                     {
                       id: "mock3",
@@ -196,7 +192,8 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                       views: 312000,
                       likes: 22400,
                       comments: 890,
-                      duration: 21
+                      duration: 21,
+                      category_name: "Science & Technology"
                     },
                     {
                       id: "mock4",
@@ -205,7 +202,8 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                       views: 45100,
                       likes: 3100,
                       comments: 115,
-                      duration: 26
+                      duration: 26,
+                      category_name: "Entertainment"
                     }
                   ]
                 };
@@ -376,6 +374,7 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                     <thead>
                       <tr className="border-b border-white/5">
                         <th className="p-3 text-gray-400 font-semibold">Title</th>
+                        <th className="p-3 text-gray-400 font-semibold">Category</th>
                         <th className="p-3 text-gray-400 font-semibold">Date</th>
                         <th className="p-3 text-gray-400 font-semibold">Views</th>
                         <th className="p-3 text-gray-400 font-semibold">Likes</th>
@@ -386,8 +385,11 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                     <tbody>
                       {channelData.recent_shorts.map((video: ShortVideo) => (
                         <tr key={video.id} className="border-b border-white/[0.04]">
-                          <td className="p-3.5 font-semibold text-[0.95rem] max-w-[300px] truncate">
+                          <td className="p-3.5 font-semibold text-[0.95rem] max-w-[240px] truncate">
                             {video.title}
+                          </td>
+                          <td className="p-3.5 text-xs text-gray-400 font-semibold">
+                            {video.category_name || 'Entertainment'}
                           </td>
                           <td className="p-3.5 text-gray-400 text-sm">
                             {formatDate(video.publishedAt)}
@@ -484,5 +486,6 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
         </>
       )}
     </div>
+    </PageShell>
   );
 }

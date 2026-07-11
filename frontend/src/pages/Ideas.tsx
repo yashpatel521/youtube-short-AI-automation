@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Header from '../components/Header';
+import PageShell from '../components/PageShell';
 
 interface ViralIdea {
   id?: number;
@@ -21,6 +21,39 @@ export default function Ideas({ backendUrl, channelData, onNavigate }: IdeasProp
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const handleAutoGenerateAndPost = async (idea: ViralIdea) => {
+    setToast({ message: `Queuing auto-generation for: "${idea.title}"...`, type: 'success' });
+    try {
+      const res = await fetch(`${backendUrl}/api/viral-ideas/auto-generate-post`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt_query: idea.prompt_query,
+          idea_title: idea.title
+        })
+      });
+      
+      if (res.ok) {
+        setToast({ 
+          message: `Successfully queued: "${idea.title}". Check progress in the Active Queue tab!`, 
+          type: 'success' 
+        });
+        setTimeout(() => setToast(null), 6000);
+      } else {
+        const data = await res.json();
+        setToast({ message: data.detail || 'Failed to queue automatic publishing.', type: 'error' });
+        setTimeout(() => setToast(null), 6000);
+      }
+    } catch (err: any) {
+      setToast({ message: err.message || 'Connection to backend failed.', type: 'error' });
+      setTimeout(() => setToast(null), 6000);
+    }
+  };
+
 
   const getPayload = () => {
     // Gather gemini key
@@ -97,36 +130,14 @@ export default function Ideas({ backendUrl, channelData, onNavigate }: IdeasProp
   };
 
   return (
-    <div className="animate-slide-up flex flex-col gap-8">
-      {/* Header component with unified stats & channel avatar */}
-      <Header
-        title="Viral Ideas Lab"
-        description="Gemini-analyzed scroll-stopping Short concepts custom-fitted to rank for high search volume topics."
-        channelData={channelData}
-      >
-        <button 
-          onClick={() => fetchIdeas(true)}
-          className="btn-primary py-2.5 px-5 text-sm"
-          disabled={loading || refreshing}
-        >
-          {refreshing ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Regenerating List...
-            </>
-          ) : (
-            <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mr-1">
-                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-              </svg>
-              Load New Content
-            </>
-          )}
+    <PageShell
+      title="Viral Ideas"
+      headerActions={
+        <button onClick={() => fetchIdeas(true)} className="btn-primary text-xs py-2 px-4" disabled={loading || refreshing}>
+          {refreshing ? 'Regenerating...' : 'Load New'}
         </button>
-      </Header>
+      }
+    >
 
       {error && (
         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
@@ -192,16 +203,29 @@ export default function Ideas({ backendUrl, channelData, onNavigate }: IdeasProp
                       </div>
                     </td>
                     <td className="p-4 text-center">
-                      <button
-                        onClick={() => handleGenerateShort(idea.prompt_query)}
-                        className="btn-primary py-2 px-3.5 text-xs inline-flex items-center gap-1.5 shadow-sm"
-                        title={`Write script for: ${idea.prompt_query}`}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <polygon points="5 3 19 12 5 21 5 3" />
-                        </svg>
-                        Generate Shorts
-                      </button>
+                      <div className="flex flex-col gap-2 items-center justify-center">
+                        <button
+                          onClick={() => handleGenerateShort(idea.prompt_query)}
+                          className="btn-primary w-full py-1.5 px-3 text-[10px] inline-flex items-center justify-center gap-1 shadow-sm font-bold"
+                          title={`Write script for: ${idea.prompt_query}`}
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polygon points="5 3 19 12 5 21 5 3" />
+                          </svg>
+                          Manual Edit
+                        </button>
+                        
+                        <button
+                          onClick={() => handleAutoGenerateAndPost(idea)}
+                          className="btn-secondary w-full py-1.5 px-3 text-[10px] inline-flex items-center justify-center gap-1 border border-white/10 hover:border-violet-500/30 font-bold"
+                          title="Generate and post to YouTube in one click"
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polygon points="5 3 19 12 5 21 5 3" />
+                          </svg>
+                          ⚡ Auto Post
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -210,6 +234,24 @@ export default function Ideas({ backendUrl, channelData, onNavigate }: IdeasProp
           </div>
         </div>
       )}
-    </div>
+
+      {/* Toast notification overlay */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 animate-slide-up">
+          <div className={`glass-panel p-4 pr-12 rounded-2xl border flex items-center gap-3 shadow-2xl max-w-sm ${toast.type === 'error' ? 'border-red-500/25 bg-red-950/20 text-red-300' : 'border-violet-500/25 bg-violet-950/20 text-violet-300'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${toast.type === 'error' ? 'bg-red-500/10' : 'bg-violet-500/10'}`}>
+              {toast.type === 'error' ? '⚠️' : '⚡'}
+            </div>
+            <div className="text-xs font-semibold leading-relaxed">{toast.message}</div>
+            <button 
+              onClick={() => setToast(null)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-white cursor-pointer bg-transparent border-0 text-[10px]"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+    </PageShell>
   );
 }

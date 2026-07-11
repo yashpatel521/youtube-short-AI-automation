@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import Header from '../components/Header';
+import PageShell from '../components/PageShell';
 
 interface SettingsProps {
   backendUrl: string;
   settings: {
     gemini_api_key_configured: boolean;
     pexels_api_key_configured: boolean;
+    replicate_api_token_configured: boolean;
     youtube_client_secrets_configured: boolean;
     client_id: string;
   };
@@ -14,16 +15,17 @@ interface SettingsProps {
     client_secrets_configured: boolean;
   };
   onUpdate: () => void;
-  channelData?: any;
 }
 
-export default function Settings({ backendUrl, settings, status, onUpdate, channelData }: SettingsProps) {
+export default function Settings({ backendUrl, settings, status, onUpdate }: SettingsProps) {
   const [geminiKey, setGeminiKey] = useState('');
   const [pexelsKey, setPexelsKey] = useState('');
+  const [replicateToken, setReplicateToken] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
 
   // Check URL query parameters for auth state redirections
   React.useEffect(() => {
@@ -50,6 +52,7 @@ export default function Settings({ backendUrl, settings, status, onUpdate, chann
         body: JSON.stringify({
           gemini_api_key: geminiKey || undefined,
           pexels_api_key: pexelsKey || undefined,
+          replicate_api_token: replicateToken || undefined,
           youtube_client_id: clientId || undefined,
           youtube_client_secret: clientSecret || undefined,
         }),
@@ -58,6 +61,7 @@ export default function Settings({ backendUrl, settings, status, onUpdate, chann
         setMsg({ type: 'success', text: 'Configurations updated successfully!' });
         setGeminiKey('');
         setPexelsKey('');
+        setReplicateToken('');
         setClientId('');
         setClientSecret('');
         onUpdate();
@@ -87,13 +91,36 @@ export default function Settings({ backendUrl, settings, status, onUpdate, chann
     }
   };
 
+  const handleResetDatabase = async () => {
+    if (!confirm('Are you absolutely sure you want to reset the database and delete all local media files? This action is permanent!')) {
+      return;
+    }
+    
+    setLoading(true);
+    setMsg(null);
+    
+    try {
+      const res = await fetch(`${backendUrl}/api/database/reset`, {
+        method: 'POST',
+      });
+      
+      if (res.ok) {
+        setMsg({ type: 'success', text: 'Database reset successfully and local folders cleaned!' });
+        onUpdate();
+      } else {
+        const data = await res.json();
+        setMsg({ type: 'error', text: data.detail || 'Failed to reset database.' });
+      }
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Error communicating with database reset API.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="animate-slide-up max-w-3xl mx-auto flex flex-col gap-8">
-      <Header
-        title="API Configurations"
-        description="Manage your local environment variables, integrations, and YouTube channel tokens."
-        channelData={channelData}
-      />
+    <PageShell title="Settings">
+      <div className="max-w-3xl mx-auto flex flex-col gap-6">
 
       {msg && (
         <div className={`p-4 rounded-xl border text-sm ${msg.type === 'success' ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-red-500/15 border-red-500/30 text-red-300'}`}>
@@ -144,6 +171,26 @@ export default function Settings({ backendUrl, settings, status, onUpdate, chann
             Needed to fetch stock motion graphics background. Create a free key at <a href="https://www.pexels.com/api/" target="_blank" rel="noreferrer" className="text-violet-400 hover:underline">Pexels Developers</a>.
           </span>
         </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="font-semibold text-sm">
+            Replicate API Token
+            <span className="text-gray-500 ml-1.5 font-normal">
+              ({settings.replicate_api_token_configured ? 'Configured' : 'Not configured'})
+            </span>
+          </label>
+          <input
+            type="password"
+            className="form-input"
+            placeholder={settings.replicate_api_token_configured ? '••••••••••••••••••••••••••••••••' : 'Enter your Replicate API token'}
+            value={replicateToken}
+            onChange={(e) => setReplicateToken(e.target.value)}
+          />
+          <span className="text-xs text-gray-500">
+            Needed for AI text-to-video generation (Wan 2.1). Create a token at <a href="https://replicate.com/" target="_blank" rel="noreferrer" className="text-violet-400 hover:underline">Replicate</a>.
+          </span>
+        </div>
+
 
         <h3 className="text-lg font-bold mt-2">YouTube API Credentials</h3>
         
@@ -222,6 +269,27 @@ export default function Settings({ backendUrl, settings, status, onUpdate, chann
           </div>
         )}
       </div>
+
+      {/* Danger Zone - Database Administration */}
+      <div className="glass-panel p-8 border border-red-500/25 bg-red-950/5 rounded-2xl flex flex-col gap-4">
+        <h2 className="text-xl font-bold border-b border-red-500/10 pb-3 text-red-400">
+          Danger Zone
+        </h2>
+        
+        <p className="text-sm text-gray-400 leading-relaxed">
+          Resetting the database drops all tables (stories, playlists, compile logs, analytics score cards) 
+          and empties all generated local media and temporary directories. Default seeded templates will be re-initialized.
+        </p>
+
+        <button 
+          onClick={handleResetDatabase} 
+          disabled={loading}
+          className="btn-primary bg-red-700 hover:bg-red-600 text-white self-start font-bold border-0 cursor-pointer"
+        >
+          {loading ? 'Processing Reset...' : '⚠️ Reset Database & Clean Folders'}
+        </button>
+      </div>
     </div>
-  );
+  </PageShell>
+);
 }

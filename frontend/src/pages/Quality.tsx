@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import Header from '../components/Header';
+import PageShell from '../components/PageShell';
 
 interface HistoryItem {
   id: number;
@@ -12,10 +12,9 @@ interface HistoryItem {
 
 interface QualityProps {
   backendUrl: string;
-  channelData: any;
 }
 
-export default function Quality({ backendUrl, channelData }: QualityProps) {
+export default function Quality({ backendUrl }: QualityProps) {
   const [videos, setVideos] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<HistoryItem | null>(null);
@@ -206,12 +205,7 @@ export default function Quality({ backendUrl, channelData }: QualityProps) {
 
 
   return (
-    <div className="animate-slide-up flex flex-col gap-8">
-      <Header
-        title="Quality Lab"
-        description="Inspect rendering outputs, visual quality, and score compiled Shorts animations."
-        channelData={channelData}
-      />
+    <PageShell title="Quality Lab">
 
       <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-8 items-start">
         
@@ -374,6 +368,7 @@ export default function Quality({ backendUrl, channelData }: QualityProps) {
                   >
                     <option value="pexels">Pexels Stock Footage (Online)</option>
                     <option value="local_model">Local Procedural Model (Offline AI)</option>
+                    <option value="ai_video">AI Text-to-Video (Replicate Wan 2.1)</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
@@ -518,6 +513,6 @@ export default function Quality({ backendUrl, channelData }: QualityProps) {
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
