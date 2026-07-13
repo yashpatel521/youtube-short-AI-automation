@@ -49,10 +49,6 @@ def fallback_viral_ideas_refresh(req: ViralIdeasRequest):
 def fallback_auto_generate_post(req: AutoGeneratePostRequest, background_tasks: BackgroundTasks):
     return video.auto_generate_and_post_idea(req, background_tasks)
 
-@app.get("/api/competitors")
-def fallback_search_competitors(keyword: str = Query(..., description="Topic keywords to search")):
-    return youtube.search_competitors(keyword)
-
 # Backward Compatibility Fallbacks for Legacy Script Endpoints
 @app.post("/api/script/suggest-ideas")
 def fallback_suggest_ideas(req: SuggestionRequest):

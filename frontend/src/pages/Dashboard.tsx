@@ -16,7 +16,7 @@ interface DashboardProps {
   channelData: any;
   loading: boolean;
   onRefresh: () => void;
-  onNavigate: (tab: 'dashboard' | 'generator' | 'analytics' | 'settings') => void;
+  onNavigate: (tab: 'dashboard' | 'generator' | 'settings') => void;
   youtubeAuthenticated: boolean;
   onLoadDemo: (data: any) => void;
   backendUrl: string;
@@ -181,16 +181,6 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
         } catch {}
       }
 
-      // Gather competitor contexts if any stored
-      let compShorts: any[] = [];
-      const storedComp = sessionStorage.getItem('competitor_context');
-      if (storedComp) {
-        try {
-          const parsed = JSON.parse(storedComp);
-          compShorts = parsed.competitors || [];
-        } catch {}
-      }
-
       const res = await fetch(`${backendUrl}/api/video/script/suggest-ideas`, {
         method: 'POST',
         headers: {
@@ -199,7 +189,7 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
         body: JSON.stringify({
           gemini_key: geminiKey,
           previous_shorts: channelData?.recent_shorts || [],
-          competitor_shorts: compShorts
+          competitor_shorts: []
         })
       });
 
@@ -396,10 +386,6 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                     {Icons.create}
                     Create a Short
                   </button>
-                  <button onClick={() => onNavigate('analytics')} className="btn-secondary">
-                    {Icons.compete}
-                    Competitor Intel
-                  </button>
                 </div>
               </div>
             </div>
@@ -407,7 +393,7 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
 
           {/* ━━━ Quick Actions Bar ━━━ */}
           {channelData && (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="quick-action" onClick={() => onNavigate('generator')}>
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500/20 to-violet-600/10 flex items-center justify-center text-violet-400 shrink-0">
                   {Icons.create}
@@ -426,17 +412,6 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-bold">Browse Library</h4>
                   <p className="text-xs text-gray-500 mt-0.5">Manage generated videos</p>
-                </div>
-                <span className="text-gray-600">{Icons.arrow}</span>
-              </div>
-
-              <div className="quick-action" onClick={() => onNavigate('analytics')}>
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-pink-500/20 to-pink-600/10 flex items-center justify-center text-pink-400 shrink-0">
-                  {Icons.compete}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold">Analyze Competitors</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">Spy on rival channels</p>
                 </div>
                 <span className="text-gray-600">{Icons.arrow}</span>
               </div>

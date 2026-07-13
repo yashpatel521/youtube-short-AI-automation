@@ -13,7 +13,6 @@ const icons = {
   generator: <Icon><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></Icon>,
   story: <Icon><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></Icon>,
   library: <Icon><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></Icon>,
-  analytics: <Icon><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></Icon>,
   ideas: <Icon><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .6 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /><path d="M9 18h6" /><path d="M10 22h4" /></Icon>,
   queue: <Icon><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></Icon>,
   quality: <Icon><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="m9 12 2 2 4-4" /></Icon>,
@@ -42,7 +41,6 @@ const NAV_SECTIONS = [
   {
     label: 'Analyze',
     items: [
-      { id: 'analytics', label: 'Competitors', icon: icons.analytics, path: '/analytics' },
       { id: 'ideas', label: 'Viral Ideas', icon: icons.ideas, path: '/ideas' },
       { id: 'quality', label: 'Quality Lab', icon: icons.quality, path: '/quality' },
     ],

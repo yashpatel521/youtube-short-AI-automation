@@ -29,7 +29,6 @@ interface GeneratorProps {
 export default function Generator({ backendUrl, channelData, settings: _settings }: GeneratorProps) {
   // Creator states
   const [topic, setTopic] = useState('');
-  const [learningContext, setLearningContext] = useState<any>(null);
   const [generatingScript, setGeneratingScript] = useState(false);
   const [scriptData, setScriptData] = useState<ScriptPackage | null>(null);
 
@@ -76,21 +75,7 @@ export default function Generator({ backendUrl, channelData, settings: _settings
   }, [backendUrl]);
 
 
-  // Read competitor context from sessionStorage if redirected from research
-  useEffect(() => {
-    const rawContext = sessionStorage.getItem('competitor_context');
-    if (rawContext) {
-      try {
-        const parsed = JSON.parse(rawContext);
-        setLearningContext(parsed);
-        setTopic(parsed.topic);
-        // Clear it so it doesn't persist forever
-        sessionStorage.removeItem('competitor_context');
-      } catch (err) {
-        console.error('Error loading competitor context:', err);
-      }
-    }
-  }, []);
+
 
   // Read generator prompt from sessionStorage if redirected from dashboard suggestions
   useEffect(() => {
@@ -215,7 +200,7 @@ export default function Generator({ backendUrl, channelData, settings: _settings
           topic: topic,
           gemini_key: geminiKey,
           previous_shorts: channelData?.recent_shorts || [],
-          competitor_shorts: learningContext?.competitors || []
+          competitor_shorts: []
         }),
       });
 
@@ -360,11 +345,7 @@ export default function Generator({ backendUrl, channelData, settings: _settings
         <div className="glass-panel p-6 flex flex-col gap-4">
           <h2 className="text-lg font-bold">AI Creative Prompter</h2>
           
-          {learningContext && (
-            <div className="p-2.5 bg-violet-500/10 border border-violet-500/30 rounded-lg text-xs text-[#c084fc] flex items-center gap-1.5">
-              <span className="font-bold">Learning Mode Active:</span> Co-referencing trending competitor Shorts metrics.
-            </div>
-          )}
+
 
           <div className="flex gap-3">
             <input

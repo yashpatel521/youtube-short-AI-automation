@@ -200,9 +200,3 @@ def upload_youtube_thumbnail(req: UploadThumbnailRequest):
     if not success:
         raise HTTPException(status_code=500, detail="Failed to upload thumbnail to YouTube.")
     return {"success": True, "message": "Thumbnail uploaded successfully."}
-
-@router.get("/competitors")
-def search_competitors(keyword: str = Query(..., description="Topic keywords to search")):
-    """Queries YouTube API or public scraper for competitor metrics."""
-    results = youtube_service.search_competitor_shorts(keyword)
-    return {"results": results}

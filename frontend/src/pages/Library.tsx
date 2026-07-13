@@ -13,7 +13,7 @@ interface HistoryItem {
 interface LibraryProps {
   backendUrl: string;
   youtubeAuthenticated: boolean;
-  onNavigate: (tab: 'dashboard' | 'generator' | 'library' | 'analytics' | 'ideas' | 'settings') => void;
+  onNavigate: (tab: 'dashboard' | 'generator' | 'library' | 'ideas' | 'settings') => void;
 }
 
 export default function Library({ backendUrl, youtubeAuthenticated, onNavigate }: LibraryProps) {

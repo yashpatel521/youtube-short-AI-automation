@@ -13,7 +13,7 @@ interface ViralIdea {
 interface IdeasProps {
   backendUrl: string;
   channelData: any;
-  onNavigate: (tab: 'dashboard' | 'generator' | 'library' | 'analytics' | 'ideas' | 'settings') => void;
+  onNavigate: (tab: 'dashboard' | 'generator' | 'library' | 'ideas' | 'settings') => void;
 }
 
 export default function Ideas({ backendUrl, channelData, onNavigate }: IdeasProps) {
@@ -66,20 +66,10 @@ export default function Ideas({ backendUrl, channelData, onNavigate }: IdeasProp
       } catch {}
     }
 
-    // Gather competitor context
-    let compShorts = [];
-    const storedComp = sessionStorage.getItem('competitor_context');
-    if (storedComp) {
-      try {
-        const parsed = JSON.parse(storedComp);
-        compShorts = parsed.competitors || [];
-      } catch {}
-    }
-
     return {
       gemini_key: geminiKey,
       previous_shorts: channelData?.recent_shorts || [],
-      competitor_shorts: compShorts
+      competitor_shorts: []
     };
   };
 

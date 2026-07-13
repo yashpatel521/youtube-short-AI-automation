@@ -3,7 +3,6 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Generator from './pages/Generator';
 import Library from './pages/Library';
-import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Ideas from './pages/Ideas';
 import Quality from './pages/Quality';
@@ -23,7 +22,7 @@ export default function App() {
   // Determine active tab dynamically from URL pathname
   const activeTab = (() => {
     const path = location.pathname.replace('/', '');
-    const validTabs = ['dashboard', 'generator', 'library', 'analytics', 'ideas', 'quality', 'settings', 'queue', 'story_studio', 'autopost'];
+    const validTabs = ['dashboard', 'generator', 'library', 'ideas', 'quality', 'settings', 'queue', 'story_studio', 'autopost'];
     
     // Auto-route to settings page if auth query parameters are present (from YouTube OAuth redirect)
     const params = new URLSearchParams(location.search);
@@ -38,9 +37,9 @@ export default function App() {
       return 'story_studio';
     }
     return 'dashboard';
-  })() as 'dashboard' | 'generator' | 'library' | 'analytics' | 'ideas' | 'quality' | 'settings' | 'queue' | 'story_studio' | 'autopost';
+  })() as 'dashboard' | 'generator' | 'library' | 'ideas' | 'quality' | 'settings' | 'queue' | 'story_studio' | 'autopost';
 
-  const setActiveTab = (tab: 'dashboard' | 'generator' | 'library' | 'analytics' | 'ideas' | 'quality' | 'settings' | 'queue' | 'story_studio' | 'autopost') => {
+  const setActiveTab = (tab: 'dashboard' | 'generator' | 'library' | 'ideas' | 'quality' | 'settings' | 'queue' | 'story_studio' | 'autopost') => {
     navigate(`/${tab}`);
   };
 
@@ -206,13 +205,6 @@ export default function App() {
           } />
           <Route path="/library" element={
             <Library 
-              backendUrl={backendUrl}
-              youtubeAuthenticated={status.youtube_authenticated}
-              onNavigate={setActiveTab}
-            />
-          } />
-          <Route path="/analytics" element={
-            <Analytics 
               backendUrl={backendUrl}
               youtubeAuthenticated={status.youtube_authenticated}
               onNavigate={setActiveTab}
