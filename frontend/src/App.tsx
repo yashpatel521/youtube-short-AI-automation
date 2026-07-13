@@ -12,6 +12,7 @@ import StoryStudio from './pages/StoryStudio';
 import StoryDetail from './pages/StoryDetail';
 import ChapterStoryboard from './pages/ChapterStoryboard';
 import SceneEditor from './pages/SceneEditor';
+import AutopostAutomation from './pages/AutopostAutomation';
 
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 
@@ -22,7 +23,7 @@ export default function App() {
   // Determine active tab dynamically from URL pathname
   const activeTab = (() => {
     const path = location.pathname.replace('/', '');
-    const validTabs = ['dashboard', 'generator', 'library', 'analytics', 'ideas', 'quality', 'settings', 'queue', 'story_studio'];
+    const validTabs = ['dashboard', 'generator', 'library', 'analytics', 'ideas', 'quality', 'settings', 'queue', 'story_studio', 'autopost'];
     
     // Auto-route to settings page if auth query parameters are present (from YouTube OAuth redirect)
     const params = new URLSearchParams(location.search);
@@ -37,9 +38,9 @@ export default function App() {
       return 'story_studio';
     }
     return 'dashboard';
-  })() as 'dashboard' | 'generator' | 'library' | 'analytics' | 'ideas' | 'quality' | 'settings' | 'queue' | 'story_studio';
+  })() as 'dashboard' | 'generator' | 'library' | 'analytics' | 'ideas' | 'quality' | 'settings' | 'queue' | 'story_studio' | 'autopost';
 
-  const setActiveTab = (tab: 'dashboard' | 'generator' | 'library' | 'analytics' | 'ideas' | 'quality' | 'settings' | 'queue' | 'story_studio') => {
+  const setActiveTab = (tab: 'dashboard' | 'generator' | 'library' | 'analytics' | 'ideas' | 'quality' | 'settings' | 'queue' | 'story_studio' | 'autopost') => {
     navigate(`/${tab}`);
   };
 
@@ -84,7 +85,16 @@ export default function App() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(story)
-            }).catch(console.error);
+            })
+            .then(async res => {
+              if (res.ok) {
+                const data = await res.json();
+                if (data.youtube_playlist_id && story.youtube_playlist_id !== data.youtube_playlist_id) {
+                  setStoriesState(current => current.map(s => s.id === story.id ? { ...s, youtube_playlist_id: data.youtube_playlist_id } : s));
+                }
+              }
+            })
+            .catch(console.error);
           }
         });
       }
@@ -227,6 +237,9 @@ export default function App() {
               status={status}
               onUpdate={fetchStatusAndSettings}
             />
+          } />
+          <Route path="/autopost" element={
+            <AutopostAutomation />
           } />
           <Route path="/queue" element={
             <Queue 

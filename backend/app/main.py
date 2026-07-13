@@ -1,11 +1,18 @@
 import time
 import threading
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import OUTPUT_DIR
 from app.services import db_service, youtube_service
-from app.routers import youtube, stories, video, settings
+from app.routers import youtube, stories, video, settings, automation
+from app.models import (
+    ViralIdeasRequest, 
+    AutoGeneratePostRequest, 
+    SuggestionRequest, 
+    ScriptRequest, 
+    CustomScriptRequest
+)
 
 # Initialize FastAPI App
 app = FastAPI(
@@ -27,6 +34,37 @@ app.include_router(settings.router)
 app.include_router(youtube.router)
 app.include_router(stories.router)
 app.include_router(video.router)
+app.include_router(automation.router)
+
+# Backward Compatibility Fallbacks for Legacy Ideas Endpoints
+@app.post("/api/viral-ideas")
+def fallback_viral_ideas(req: ViralIdeasRequest):
+    return video.get_viral_ideas_endpoint(req)
+
+@app.post("/api/viral-ideas/refresh")
+def fallback_viral_ideas_refresh(req: ViralIdeasRequest):
+    return video.refresh_viral_ideas_endpoint(req)
+
+@app.post("/api/viral-ideas/auto-generate-post")
+def fallback_auto_generate_post(req: AutoGeneratePostRequest, background_tasks: BackgroundTasks):
+    return video.auto_generate_and_post_idea(req, background_tasks)
+
+@app.get("/api/competitors")
+def fallback_search_competitors(keyword: str = Query(..., description="Topic keywords to search")):
+    return youtube.search_competitors(keyword)
+
+# Backward Compatibility Fallbacks for Legacy Script Endpoints
+@app.post("/api/script/suggest-ideas")
+def fallback_suggest_ideas(req: SuggestionRequest):
+    return video.suggest_viral_ideas_endpoint(req)
+
+@app.post("/api/script/generate")
+def fallback_generate_script(req: ScriptRequest):
+    return video.generate_ai_script(req)
+
+@app.post("/api/script/generate-custom")
+def fallback_generate_custom(req: CustomScriptRequest):
+    return video.generate_custom_script_details(req)
 
 def background_upload_worker():
     """Background loop that checks for due scheduled uploads and uploads them to YouTube."""

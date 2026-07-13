@@ -208,7 +208,7 @@ export default function Generator({ backendUrl, channelData, settings: _settings
     }
 
     try {
-      const res = await fetch(`${backendUrl}/api/script/generate`, {
+      const res = await fetch(`${backendUrl}/api/video/script/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -220,3 +220,194 @@ body {
 .glow-active {
   animation: pulse-glow 2.5s ease-in-out infinite;
 }
+
+/* ─── Dashboard Premium Animations ─── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes rotate-border {
+  0% { --angle: 0deg; }
+  100% { --angle: 360deg; }
+}
+
+@keyframes orbit-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15), 0 0 0 8px rgba(139, 92, 246, 0.08); }
+  50% { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.25), 0 0 0 14px rgba(139, 92, 246, 0.1); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes count-fade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Dashboard Utility Classes ─── */
+
+.shimmer-bg {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, #8b5cf6 0%, #c084fc 30%, #f0abfc 50%, #c084fc 70%, #8b5cf6 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-orbit {
+  animation: orbit-pulse 2.5s ease-in-out infinite;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+.animate-sparkle {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.animate-count {
+  animation: count-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-in {
+  animation: slide-in-right 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Stat Cards ── */
+.stat-card {
+  @apply rounded-xl border relative overflow-hidden transition-all duration-300;
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-hover);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+.stat-card .stat-watermark {
+  @apply absolute -right-3 -bottom-3 opacity-[0.04] pointer-events-none;
+}
+.stat-card .stat-trend {
+  @apply mt-3 flex items-center gap-1.5 text-xs font-semibold;
+}
+
+/* ── Spotlight Card ── */
+.spotlight-card {
+  @apply rounded-xl border relative overflow-hidden transition-all duration-300;
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.04) 0%, rgba(245, 158, 11, 0.02) 100%);
+  border-color: rgba(234, 179, 8, 0.15);
+}
+.spotlight-card:hover {
+  border-color: rgba(234, 179, 8, 0.3);
+  box-shadow: 0 0 24px rgba(234, 179, 8, 0.08);
+}
+.spotlight-card::before {
+  content: '';
+  @apply absolute top-0 left-0 right-0 h-[2px];
+  background: linear-gradient(90deg, transparent, #eab308, transparent);
+}
+
+/* ── Engagement Badges ── */
+.badge {
+  @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.7rem] font-bold tracking-wide;
+}
+.badge-green {
+  @apply text-emerald-300;
+  background: rgba(16, 185, 129, 0.12);
+}
+.badge-amber {
+  @apply text-amber-300;
+  background: rgba(245, 158, 11, 0.12);
+}
+.badge-red {
+  @apply text-red-300;
+  background: rgba(239, 68, 68, 0.12);
+}
+.badge-violet {
+  @apply text-violet-300;
+  background: rgba(139, 92, 246, 0.12);
+}
+
+/* ── Card-Row (replaces table rows) ── */
+.card-row {
+  @apply rounded-lg border px-4 py-3.5 flex items-center gap-4 transition-all duration-200 relative;
+  background: rgba(255, 255, 255, 0.015);
+  border-color: var(--border-subtle);
+}
+.card-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--border-hover);
+}
+.card-row:hover::before {
+  content: '';
+  @apply absolute left-0 top-[15%] bottom-[15%] w-[3px] rounded-r-full;
+  background: var(--accent);
+}
+
+/* ── Quick Action Cards ── */
+.quick-action {
+  @apply rounded-xl border p-5 flex items-center gap-4 cursor-pointer transition-all duration-300 relative overflow-hidden;
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+}
+.quick-action:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.quick-action::after {
+  content: '';
+  @apply absolute bottom-0 left-0 right-0 h-[2px] opacity-0 transition-opacity duration-300;
+  background: linear-gradient(90deg, var(--accent), #ec4899);
+}
+.quick-action:hover::after {
+  opacity: 1;
+}
+
+/* ── Mesh Gradient Background ── */
+.mesh-gradient {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(236, 72, 153, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
+}
+
+/* ── Skeleton Loading ── */
+.skeleton {
+  @apply rounded-lg;
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}

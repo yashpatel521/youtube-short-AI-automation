@@ -36,7 +36,7 @@ export default function Analytics({
     setError(null);
     try {
       const res = await fetch(
-        `${backendUrl}/api/competitors?keyword=${encodeURIComponent(keyword)}`,
+        `${backendUrl}/api/youtube/competitors?keyword=${encodeURIComponent(keyword)}`,
       );
       if (res.ok) {
         const data = await res.json();

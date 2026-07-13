@@ -51,8 +51,8 @@ def get_stories_db() -> List[Dict[str, Any]]:
 def save_story_db(story: Dict[str, Any]):
     with get_connection() as conn:
         conn.execute(
-            "INSERT OR REPLACE INTO stories (id, title, style) VALUES (?, ?, ?)",
-            (story["id"], story["title"], story["style"])
+            "INSERT OR REPLACE INTO stories (id, title, style, youtube_playlist_id) VALUES (?, ?, ?, ?)",
+            (story["id"], story["title"], story["style"], story.get("youtube_playlist_id", ""))
         )
         
         existing_ch_rows = conn.execute(
@@ -80,8 +80,20 @@ def save_story_db(story: Dict[str, Any]):
                     compiled_video = db_ch["compiled_video"]
             
             conn.execute(
-                "INSERT OR REPLACE INTO chapters (id, story_id, title, chapter_idx, compiled_video) VALUES (?, ?, ?, ?, ?)",
-                (ch_id, story["id"], chapter["title"], ch_idx, compiled_video)
+                "INSERT OR REPLACE INTO chapters (id, story_id, title, chapter_idx, compiled_video, description, tags, category_id, published, youtube_video_id) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    ch_id,
+                    story["id"],
+                    chapter["title"],
+                    ch_idx,
+                    compiled_video,
+                    chapter.get("description", ""),
+                    chapter.get("tags", ""),
+                    chapter.get("category_id", ""),
+                    1 if chapter.get("published", False) or chapter.get("published") == 1 else 0,
+                    chapter.get("youtube_video_id", "")
+                )
             )
             
             existing_sc_rows = conn.execute(

@@ -109,9 +109,16 @@ def init_db():
             CREATE TABLE IF NOT EXISTS stories (
                 id TEXT PRIMARY KEY,
                 title TEXT,
-                style TEXT
+                style TEXT,
+                youtube_playlist_id TEXT DEFAULT ''
             )
         """)
+
+        # Migration: Add youtube_playlist_id to stories if missing
+        try:
+            conn.execute("ALTER TABLE stories ADD COLUMN youtube_playlist_id TEXT DEFAULT ''")
+        except Exception:
+            pass
 
         # 7. Chapters table
         conn.execute("""
@@ -121,9 +128,36 @@ def init_db():
                 title TEXT,
                 chapter_idx INTEGER,
                 compiled_video TEXT,
+                description TEXT DEFAULT '',
+                tags TEXT DEFAULT '',
+                category_id TEXT DEFAULT '',
+                published INTEGER DEFAULT 0,
+                youtube_video_id TEXT DEFAULT '',
                 FOREIGN KEY(story_id) REFERENCES stories(id) ON DELETE CASCADE
             )
         """)
+
+        # Migration: Add columns to chapters if missing (Start-from-Fail robustness)
+        try:
+            conn.execute("ALTER TABLE chapters ADD COLUMN description TEXT DEFAULT ''")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE chapters ADD COLUMN tags TEXT DEFAULT ''")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE chapters ADD COLUMN category_id TEXT DEFAULT ''")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE chapters ADD COLUMN published INTEGER DEFAULT 0")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE chapters ADD COLUMN youtube_video_id TEXT DEFAULT ''")
+        except Exception:
+            pass
 
         # 8. Scenes table
         conn.execute("""
@@ -138,6 +172,37 @@ def init_db():
                 image_url TEXT,
                 image_urls TEXT,
                 FOREIGN KEY(chapter_id) REFERENCES chapters(id) ON DELETE CASCADE
+            )
+        """)
+
+        # 9. Autopost automation state table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS automation_state (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
+
+        # 10. Autopost automation logs table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS automation_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                log_text TEXT,
+                level TEXT DEFAULT 'INFO',
+                created_at TEXT
+            )
+        """)
+
+        # 11. Autopost processed videos table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS automation_processed_videos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                original_youtube_id TEXT UNIQUE,
+                original_title TEXT,
+                original_description TEXT,
+                regenerated_title TEXT,
+                youtube_video_id TEXT,
+                processed_at TEXT
             )
         """)
 
@@ -243,5 +308,8 @@ def reset_db_connections():
         conn.execute("DROP TABLE IF EXISTS scenes")
         conn.execute("DROP TABLE IF EXISTS chapters")
         conn.execute("DROP TABLE IF EXISTS stories")
+        conn.execute("DROP TABLE IF EXISTS automation_state")
+        conn.execute("DROP TABLE IF EXISTS automation_logs")
+        conn.execute("DROP TABLE IF EXISTS automation_processed_videos")
         conn.commit()
     init_db()

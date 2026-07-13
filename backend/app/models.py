@@ -113,3 +113,7 @@ class SceneDeleteImageRequest(BaseModel):
     scene_idx: int
     beat_idx: int
 
+class UploadThumbnailRequest(BaseModel):
+    video_id: str
+    image_filename: str
+

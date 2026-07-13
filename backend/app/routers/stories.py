@@ -8,7 +8,7 @@ import os
 from PIL import Image
 from fastapi.responses import FileResponse
 from app.config import OUTPUT_DIR, TEMP_DIR
-from app.services import db_service, ai_service, video_engine
+from app.services import db_service, ai_service, video_engine, youtube_service
 from app.models import (
     StoryGenerateRequest, StoryCompileRequest, SceneNarrationRequest,
     ScenePromptRequest, SceneImageRequest, SceneDeleteImageRequest
@@ -201,8 +201,21 @@ def get_stories_endpoint():
 def save_story_endpoint(story: dict = Body(...)):
     """Saves or updates a story configuration directly inside SQLite."""
     try:
+        # If the story doesn't have a playlist ID, and we are connected to YouTube, create one!
+        if not story.get("youtube_playlist_id") and youtube_service.is_authenticated():
+            try:
+                playlist_id = youtube_service.create_playlist(
+                    title=story.get("title", "My Story Studio Playlist"),
+                    description=f"Generated playlist for animated stories: {story.get('title', '')}"
+                )
+                if playlist_id:
+                    story["youtube_playlist_id"] = playlist_id
+                    print(f"[YouTube Playlist] Created playlist '{story.get('title')}' with ID: {playlist_id}")
+            except Exception as e:
+                print(f"[YouTube Playlist] Failed to create playlist automatically: {e}")
+
         db_service.save_story(story)
-        return {"success": True}
+        return {"success": True, "youtube_playlist_id": story.get("youtube_playlist_id", "")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save story: {str(e)}")
 

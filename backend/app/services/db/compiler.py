@@ -16,6 +16,11 @@ from app.services.db.uploads import (
     update_scheduled_upload_status_db, delete_scheduled_upload_db
 )
 from app.services.db.reviews import save_quality_review_db, get_quality_reviews_db
+from app.services.db.automation import (
+    get_automation_state, set_automation_state, add_automation_log,
+    get_automation_logs, clear_automation_logs, is_video_processed,
+    is_video_processed_by_title_or_desc, add_processed_video, get_processed_videos
+)
 
 class DBService:
     def __init__(self):
@@ -132,3 +137,31 @@ class DBService:
             print(f"[Reset DB] Error emptying media directories: {e}")
 
         reset_db_connections()
+
+    # --- Autopost Automation Operations ---
+    def get_automation_state(self, key: str, default: str = "") -> str:
+        return get_automation_state(key, default)
+
+    def set_automation_state(self, key: str, value: str):
+        set_automation_state(key, value)
+
+    def add_automation_log(self, log_text: str, level: str = "INFO"):
+        add_automation_log(log_text, level)
+
+    def get_automation_logs(self, limit: int = 150) -> List[Dict[str, Any]]:
+        return get_automation_logs(limit)
+
+    def clear_automation_logs(self):
+        clear_automation_logs()
+
+    def is_video_processed(self, original_youtube_id: str) -> bool:
+        return is_video_processed(original_youtube_id)
+
+    def is_video_processed_by_title_or_desc(self, title: str, description: str) -> bool:
+        return is_video_processed_by_title_or_desc(title, description)
+
+    def add_processed_video(self, original_youtube_id: str, original_title: str, original_description: str, regenerated_title: str, youtube_video_id: str):
+        add_processed_video(original_youtube_id, original_title, original_description, regenerated_title, youtube_video_id)
+
+    def get_processed_videos(self) -> List[Dict[str, Any]]:
+        return get_processed_videos()

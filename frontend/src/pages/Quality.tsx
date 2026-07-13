@@ -136,7 +136,7 @@ export default function Quality({ backendUrl }: QualityProps) {
         } catch {}
       }
 
-      const res = await fetch(`${backendUrl}/api/script/generate-custom`, {
+      const res = await fetch(`${backendUrl}/api/video/script/generate-custom`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

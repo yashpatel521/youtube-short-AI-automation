@@ -17,6 +17,7 @@ const icons = {
   ideas: <Icon><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .6 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /><path d="M9 18h6" /><path d="M10 22h4" /></Icon>,
   queue: <Icon><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></Icon>,
   quality: <Icon><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="m9 12 2 2 4-4" /></Icon>,
+  automation: <Icon><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M12 2v4M12 6H8M12 6h4M5 11V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2M9 15h.01M15 15h.01" /></Icon>,
   settings: <Icon><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></Icon>,
 };
 
@@ -35,6 +36,7 @@ const NAV_SECTIONS = [
     items: [
       { id: 'library', label: 'Video Gallery', icon: icons.library, path: '/library' },
       { id: 'queue', label: 'Active Queue', icon: icons.queue, path: '/queue' },
+      { id: 'autopost', label: 'Autopost Automation', icon: icons.automation, path: '/autopost' },
     ],
   },
   {

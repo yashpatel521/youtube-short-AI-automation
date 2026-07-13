@@ -41,3 +41,8 @@ yarn-error.log*
 *.swp
 Thumbs.db
 Desktop.ini
+
+# Database & temp artifacts
+*.db
+*.sqlite
+*TEMP_MPY*.mp4

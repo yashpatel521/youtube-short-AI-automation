@@ -3,9 +3,9 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Body
 from fastapi.responses import RedirectResponse
 
-from app.config import CLIENT_SECRETS_FILE, PORT, OUTPUT_DIR, YOUTUBE_CATEGORIES
+from app.config import CLIENT_SECRETS_FILE, PORT, OUTPUT_DIR, YOUTUBE_CATEGORIES, TEMP_DIR
 from app.services import youtube_service, ai_service, db_service
-from app.models import UploadRequest, ScheduleRequest, SuggestMetadataRequest
+from app.models import UploadRequest, ScheduleRequest, SuggestMetadataRequest, UploadThumbnailRequest
 
 router = APIRouter(prefix="/api/youtube", tags=["youtube"])
 
@@ -78,6 +78,27 @@ def upload_to_youtube(req: UploadRequest):
         
     # Mark as uploaded in the database
     db_service.mark_history_as_posted(req.video_filename, res.get("video_id"))
+
+    # Update chapters table with youtube_video_id
+    try:
+        normalized_filename = str(req.video_filename).replace("\\", "/")
+        if "story_" in normalized_filename:
+            parts = normalized_filename.split("/")
+            story_part = next((p for p in parts if p.startswith("story_")), None)
+            chapter_part = next((p for p in parts if p.startswith("chapter_")), None)
+            if story_part and chapter_part:
+                story_id = story_part.replace("story_", "")
+                chapter_idx = int(chapter_part.replace("chapter_", ""))
+                
+                stories = db_service.get_stories()
+                story = next((s for s in stories if s["id"] == story_id), None)
+                if story and chapter_idx < len(story["chapters"]):
+                    story["chapters"][chapter_idx]["youtube_video_id"] = res.get("video_id", "")
+                    story["chapters"][chapter_idx]["published"] = 1
+                    db_service.save_story(story)
+                    print(f"[YouTube Upload] Automatically updated database for story {story_id} chapter {chapter_idx} with youtube_video_id {res.get('video_id')}")
+    except Exception as db_err:
+        print(f"[YouTube Upload] Failed to update chapter youtube_video_id: {db_err}")
 
     # Delete local video file after successful upload to conserve storage
     try:
@@ -161,3 +182,27 @@ def get_youtube_categories():
     except Exception as e:
         print(f"Error fetching categories from YouTube API: {e}")
         return {"categories": fallback_list}
+
+@router.post("/upload-thumbnail")
+def upload_youtube_thumbnail(req: UploadThumbnailRequest):
+    """Uploads a specific generated image as the thumbnail for a YouTube video."""
+    if not youtube_service.is_authenticated():
+        raise HTTPException(status_code=401, detail="YouTube client is not authenticated.")
+    
+    file_path = TEMP_DIR / req.image_filename
+    if not file_path.exists():
+        # Try output dir just in case
+        file_path = OUTPUT_DIR / req.image_filename
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail=f"Image file {req.image_filename} not found.")
+
+    success = youtube_service.upload_thumbnail(req.video_id, str(file_path))
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to upload thumbnail to YouTube.")
+    return {"success": True, "message": "Thumbnail uploaded successfully."}
+
+@router.get("/competitors")
+def search_competitors(keyword: str = Query(..., description="Topic keywords to search")):
+    """Queries YouTube API or public scraper for competitor metrics."""
+    results = youtube_service.search_competitor_shorts(keyword)
+    return {"results": results}

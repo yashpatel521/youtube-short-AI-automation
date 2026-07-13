@@ -28,7 +28,7 @@ export default function Ideas({ backendUrl, channelData, onNavigate }: IdeasProp
   const handleAutoGenerateAndPost = async (idea: ViralIdea) => {
     setToast({ message: `Queuing auto-generation for: "${idea.title}"...`, type: 'success' });
     try {
-      const res = await fetch(`${backendUrl}/api/viral-ideas/auto-generate-post`, {
+      const res = await fetch(`${backendUrl}/api/video/viral-ideas/auto-generate-post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -93,8 +93,8 @@ export default function Ideas({ backendUrl, channelData, onNavigate }: IdeasProp
 
     const payload = getPayload();
     const endpoint = isRefresh 
-      ? `${backendUrl}/api/viral-ideas/refresh` 
-      : `${backendUrl}/api/viral-ideas`;
+      ? `${backendUrl}/api/video/viral-ideas/refresh` 
+      : `${backendUrl}/api/video/viral-ideas`;
 
     try {
       const res = await fetch(endpoint, {

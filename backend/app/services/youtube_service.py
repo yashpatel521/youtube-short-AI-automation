@@ -7,7 +7,7 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 
-from app.config import CLIENT_SECRETS_FILE, TOKEN_FILE, YOUTUBE_CATEGORIES
+from app.config import CLIENT_SECRETS_FILE, TOKEN_FILE, YOUTUBE_CATEGORIES, TEMP_DIR
 
 # YouTube API Scopes required for analytics and uploading
 SCOPES = [
@@ -329,7 +329,8 @@ class YouTubeService:
         description: str,
         tags: List[str],
         privacy_status: str = "public",
-        category_id: Optional[str] = None
+        category_id: Optional[str] = None,
+        playlist_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Uploads a video file directly to YouTube and sets tags / Shorts metadata.
@@ -372,12 +373,146 @@ class YouTubeService:
                 if status:
                     print(f"Uploaded {int(status.progress() * 100)}%")
 
+            video_id = response["id"]
+
+            # Auto-detect playlist ID from database if story name is present in filename
+            if not playlist_id and video_path:
+                try:
+                    normalized_path = str(video_path).replace("\\", "/")
+                    if "story_" in normalized_path:
+                        parts = normalized_path.split("/")
+                        story_part = next((p for p in parts if p.startswith("story_")), None)
+                        if story_part:
+                            story_id = story_part.replace("story_", "")
+                            from app.services.db_service import DBService
+                            db_svc = DBService()
+                            stories = db_svc.get_stories()
+                            story = next((s for s in stories if s["id"] == story_id), None)
+                            if story and story.get("youtube_playlist_id"):
+                                playlist_id = story["youtube_playlist_id"]
+                                print(f"[YouTube Playlist] Auto-detected playlist ID: {playlist_id}")
+                except Exception as auto_err:
+                    print(f"[YouTube Playlist] Auto-detect failed: {auto_err}")
+
+            # Add to playlist if playlist ID is present
+            if playlist_id:
+                try:
+                    self.add_video_to_playlist(playlist_id, video_id)
+                    print(f"[YouTube Playlist] Added video {video_id} to playlist {playlist_id}")
+                except Exception as pl_err:
+                    print(f"[YouTube Playlist] Failed to add video to playlist: {pl_err}")
+
+            # Auto-detect thumbnail path from first scene's image
+            thumbnail_path = None
+            if video_path:
+                try:
+                    normalized_path = str(video_path).replace("\\", "/")
+                    if "story_" in normalized_path:
+                        parts = normalized_path.split("/")
+                        story_part = next((p for p in parts if p.startswith("story_")), None)
+                        if story_part:
+                            story_id = story_part.replace("story_", "")
+                            chapter_part = next((p for p in parts if p.startswith("chapter_")), None)
+                            if chapter_part:
+                                chapter_idx = int(chapter_part.replace("chapter_", ""))
+                                from app.services.db_service import DBService
+                                db_svc = DBService()
+                                stories = db_svc.get_stories()
+                                story = next((s for s in stories if s["id"] == story_id), None)
+                                if story and chapter_idx < len(story["chapters"]):
+                                    chapter = story["chapters"][chapter_idx]
+                                    first_scene = next((s for s in chapter.get("scenes", []) if s.get("image_url")), None)
+                                    if first_scene:
+                                        candidate_path = TEMP_DIR / first_scene["image_url"]
+                                        if candidate_path.exists():
+                                            thumbnail_path = str(candidate_path)
+                                            print(f"[YouTube Thumbnail] Auto-detected thumbnail: {thumbnail_path}")
+                except Exception as thumb_err:
+                    print(f"[YouTube Thumbnail] Auto-detect failed: {thumb_err}")
+
+            # Upload thumbnail if found
+            if thumbnail_path:
+                try:
+                    self.upload_thumbnail(video_id, thumbnail_path)
+                except Exception as thumb_up_err:
+                    print(f"[YouTube Thumbnail] Upload failed: {thumb_up_err}")
+
             return {
                 "success": True,
-                "video_id": response["id"],
+                "video_id": video_id,
                 "title": response["snippet"]["title"],
                 "privacy": response["status"]["privacyStatus"]
             }
 
         except Exception as e:
             return {"success": False, "error": f"Failed to upload video: {str(e)}"}
+
+    def create_playlist(self, title: str, description: str = "") -> Optional[str]:
+        """Creates a new YouTube playlist using the story title, returns the Playlist ID."""
+        try:
+            youtube = self.get_client()
+            body = {
+                "snippet": {
+                    "title": title,
+                    "description": description,
+                    "tags": ["story", "shorts", "ai"],
+                    "defaultLanguage": "en"
+                },
+                "status": {
+                    "privacyStatus": "public"
+                }
+            }
+            request = youtube.playlists().insert(
+                part="snippet,status",
+                body=body
+            )
+            response = request.execute()
+            return response.get("id")
+        except Exception as e:
+            print(f"Error creating YouTube playlist: {e}")
+            return None
+
+    def add_video_to_playlist(self, playlist_id: str, video_id: str) -> bool:
+        """Adds a video ID to the specified playlist ID."""
+        try:
+            youtube = self.get_client()
+            body = {
+                "snippet": {
+                    "playlistId": playlist_id,
+                    "resourceId": {
+                       "kind": "youtube#video",
+                       "videoId": video_id
+                    }
+                }
+            }
+            request = youtube.playlistItems().insert(
+                part="snippet",
+                body=body
+            )
+            request.execute()
+            return True
+        except Exception as e:
+            print(f"Error adding video to playlist: {e}")
+            return False
+
+    def upload_thumbnail(self, video_id: str, thumbnail_path: str) -> bool:
+        """Uploads a custom thumbnail image file for the specified video ID."""
+        if not os.path.exists(thumbnail_path):
+            print(f"[YouTube Thumbnail] File not found: {thumbnail_path}")
+            return False
+        try:
+            youtube = self.get_client()
+            media = MediaFileUpload(
+                thumbnail_path,
+                mimetype="image/png" if thumbnail_path.endswith(".png") else "image/jpeg"
+            )
+            request = youtube.thumbnails().set(
+                videoId=video_id,
+                media_body=media
+            )
+            request.execute()
+            print(f"[YouTube Thumbnail] Successfully uploaded thumbnail for video {video_id}")
+            return True
+        except Exception as e:
+            print(f"[YouTube Thumbnail] Failed to upload thumbnail: {e}")
+            return False

@@ -27,6 +27,9 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
   const [publishDate, setPublishDate] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [suggestingMeta, setSuggestingMeta] = useState(false);
+  
+  const [selectedThumbnailUrl, setSelectedThumbnailUrl] = useState('');
+  const [updatingThumbnail, setUpdatingThumbnail] = useState(false);
 
   const story = stories.find(s => s.id === storyId);
   const chapter = story?.chapters[currentIdx];
@@ -35,8 +38,22 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
   useEffect(() => {
     if (chapter) {
       setYtTitle(chapter.title || 'My Cool Animated Short');
-      const sceneDescriptions = chapter.scenes?.map((s: any) => s.narration).filter(Boolean).join('\n') || '';
-      setYtDescription(`Watch this epic segment from "${story?.title || 'Story Studio'}":\n\n${sceneDescriptions.substring(0, 250)}...`);
+      setYtTags(chapter.tags || '');
+      setYtCategory(chapter.category_id || '24');
+      
+      if (chapter.description) {
+        setYtDescription(chapter.description);
+      } else {
+        const sceneDescriptions = chapter.scenes?.map((s: any) => s.narration).filter(Boolean).join('\n') || '';
+        setYtDescription(`Watch this epic segment from "${story?.title || 'Story Studio'}":\n\n${sceneDescriptions.substring(0, 250)}...`);
+      }
+
+      // Default selected thumbnail if empty
+      const firstScene = chapter.scenes?.find((s: any) => s.image_url || (s.image_urls && s.image_urls.length > 0));
+      if (firstScene) {
+        const defaultUrl = firstScene.image_urls?.[0] || firstScene.image_url;
+        setSelectedThumbnailUrl(prev => prev || defaultUrl || '');
+      }
     }
   }, [chapter, story]);
 
@@ -305,6 +322,77 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
     }
   };
 
+  const handleSaveMetadata = async (silent: boolean = false) => {
+    if (!story || !chapter) return;
+    
+    const updatedChapters = story.chapters.map((c: any, idx: number) => {
+      if (idx === currentIdx) {
+        return {
+          ...c,
+          title: ytTitle,
+          description: ytDescription,
+          tags: ytTags,
+          category_id: ytCategory
+        };
+      }
+      return c;
+    });
+
+    const updatedStory = {
+      ...story,
+      chapters: updatedChapters
+    };
+
+    try {
+      const res = await fetch(`${backendUrl}/api/stories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedStory)
+      });
+      if (res.ok) {
+        setStories(prev => prev.map(s => s.id === story.id ? updatedStory : s));
+        if (!silent) {
+          setToast({ message: 'YouTube SEO metadata saved successfully!', type: 'success' });
+        }
+      } else {
+        const data = await res.json();
+        if (!silent) {
+          setToast({ message: data.detail || 'Failed to save metadata.', type: 'error' });
+        }
+      }
+    } catch (err: any) {
+      if (!silent) {
+        setToast({ message: err.message || 'Error communicating with server.', type: 'error' });
+      }
+    }
+  };
+
+  const handleUploadThumbnail = async () => {
+    if (!chapter.youtube_video_id || !selectedThumbnailUrl) return;
+    setUpdatingThumbnail(true);
+    setToast(null);
+    try {
+      const res = await fetch(`${backendUrl}/api/youtube/upload-thumbnail`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          video_id: chapter.youtube_video_id,
+          image_filename: selectedThumbnailUrl
+        })
+      });
+      if (res.ok) {
+        setToast({ message: 'YouTube video thumbnail uploaded successfully!', type: 'success' });
+      } else {
+        const data = await res.json();
+        setToast({ message: data.detail || 'Failed to upload custom thumbnail.', type: 'error' });
+      }
+    } catch (err: any) {
+      setToast({ message: err.message || 'Error communicating with thumbnail API.', type: 'error' });
+    } finally {
+      setUpdatingThumbnail(false);
+    }
+  };
+
   const handlePublishVideo = async () => {
     if (!chapter.compiled_video) return;
     setPublishing(true);
@@ -323,7 +411,27 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
         })
       });
       if (res.ok) {
-        setToast({ message: 'Successfully published short to YouTube!', type: 'success' });
+        // Mark as published in database
+        const updatedChapters = story.chapters.map((c: any, idx: number) => {
+          if (idx === currentIdx) {
+            return {
+              ...c,
+              description: ytDescription,
+              tags: ytTags,
+              category_id: ytCategory,
+              published: true
+            };
+          }
+          return c;
+        });
+        const updatedStory = { ...story, chapters: updatedChapters };
+        await fetch(`${backendUrl}/api/stories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedStory)
+        });
+        setStories(prev => prev.map(s => s.id === story.id ? updatedStory : s));
+        setToast({ message: 'Successfully published short to YouTube and updated database!', type: 'success' });
       } else {
         const data = await res.json();
         setToast({ message: data.detail || 'YouTube upload failed.', type: 'error' });
@@ -353,7 +461,26 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
         })
       });
       if (res.ok) {
-        setToast({ message: 'Successfully scheduled video upload in compilation queue!', type: 'success' });
+        // Save metadata & schedule state in database
+        const updatedChapters = story.chapters.map((c: any, idx: number) => {
+          if (idx === currentIdx) {
+            return {
+              ...c,
+              description: ytDescription,
+              tags: ytTags,
+              category_id: ytCategory
+            };
+          }
+          return c;
+        });
+        const updatedStory = { ...story, chapters: updatedChapters };
+        await fetch(`${backendUrl}/api/stories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedStory)
+        });
+        setStories(prev => prev.map(s => s.id === story.id ? updatedStory : s));
+        setToast({ message: 'Successfully scheduled video upload in database queue!', type: 'success' });
         setPublishDate(''); // Reset after schedule
       } else {
         const data = await res.json();
@@ -393,24 +520,24 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
 
           <button
             onClick={() => handleGenerateStoryboardImages(false)}
-            disabled={compiling || chapter.scenes.length === 0}
-            className="btn-secondary py-1 px-3 text-xs font-bold border border-white/10"
+            disabled={compiling || chapter.scenes.length === 0 || !!chapter.youtube_video_id}
+            className="btn-secondary py-1 px-3 text-xs font-bold border border-white/10 disabled:opacity-40"
           >
             🎨 Gen Preview
           </button>
 
           <button
             onClick={() => handleGenerateStoryboardImages(true)}
-            disabled={compiling || chapter.scenes.length === 0}
-            className="btn-secondary py-1 px-3 text-xs font-bold border border-white/10"
+            disabled={compiling || chapter.scenes.length === 0 || !!chapter.youtube_video_id}
+            className="btn-secondary py-1 px-3 text-xs font-bold border border-white/10 disabled:opacity-40"
           >
             🎨 Gen All 3 Images
           </button>
 
           <button
             onClick={handleCompileChapterVideo}
-            disabled={compiling || chapter.scenes.length === 0}
-            className="btn-primary py-1 px-3 text-xs font-bold"
+            disabled={compiling || chapter.scenes.length === 0 || !!chapter.youtube_video_id}
+            className="btn-primary py-1 px-3 text-xs font-bold disabled:opacity-40"
           >
             ⚡ Compile
           </button>
@@ -451,30 +578,107 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
       )}
 
       {/* Playable Chapter Preview */}
-      {chapter.compiled_video && (
+      {(chapter.compiled_video || chapter.youtube_video_id) && (
         <div className="flex flex-col gap-6">
-          <div className="glass-panel p-5 border border-white/5 rounded-2xl flex flex-col gap-3">
-            <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-              🎬 Playable Chapter Preview
-            </h4>
-            <div className="aspect-video w-full max-w-2xl bg-black rounded-xl overflow-hidden border border-white/5 shadow-2xl relative">
-              <video 
-                src={`${backendUrl}/api/video/preview/${chapter.compiled_video}`} 
-                controls 
-                className="w-full h-full object-contain" 
-              />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Video Player (takes 2 cols) */}
+            <div className="lg:col-span-2 glass-panel p-5 border border-white/5 rounded-2xl flex flex-col gap-3">
+              <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                🎬 Playable Chapter Preview {chapter.youtube_video_id && '— Playing from YouTube'}
+              </h4>
+              <div className="aspect-video w-full bg-black rounded-xl overflow-hidden border border-white/5 shadow-2xl relative">
+                {chapter.youtube_video_id ? (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${chapter.youtube_video_id}`}
+                    title="YouTube video player"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    className="w-full h-full"
+                  />
+                ) : (
+                  <video 
+                    src={`${backendUrl}/api/video/preview/${chapter.compiled_video}`} 
+                    controls 
+                    className="w-full h-full object-contain" 
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Thumbnail Selection & Control (takes 1 col) */}
+            <div className="glass-panel p-5 border border-white/5 rounded-2xl flex flex-col gap-4 justify-between">
+              <div className="flex flex-col gap-2.5">
+                <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                  🖼️ Video Thumbnail
+                </h4>
+                <div className="aspect-video w-full bg-black/40 rounded-xl overflow-hidden border border-white/5 relative flex items-center justify-center">
+                  {selectedThumbnailUrl ? (
+                    <img
+                      src={selectedThumbnailUrl.startsWith('story_') ? `${backendUrl}/api/stories/scene/image/${selectedThumbnailUrl}` : `${backendUrl}/api/video/preview/${selectedThumbnailUrl}`}
+                      alt="Chapter Thumbnail"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-[11px] text-gray-500 font-bold">No thumbnail set</span>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5 mt-2">
+                  <label className="text-[10px] font-extrabold uppercase text-gray-400 tracking-wide">
+                    Select Thumbnail Source
+                  </label>
+                  <select
+                    className="form-input text-[11px] py-1.5 px-2.5 bg-black/35 text-white border-0"
+                    value={selectedThumbnailUrl}
+                    onChange={(e) => setSelectedThumbnailUrl(e.target.value)}
+                    disabled={!chapter.scenes || chapter.scenes.length === 0}
+                  >
+                    <option value="">-- Choose Scene Beat --</option>
+                    {chapter.scenes?.map((scene: any, sIdx: number) => {
+                      const urls = scene.image_urls || (scene.image_url ? [scene.image_url] : []);
+                      return urls.map((url: string, uIdx: number) => (
+                        <option key={`${sIdx}-${uIdx}`} value={url}>
+                          Scene {sIdx + 1} - Beat {uIdx + 1}
+                        </option>
+                      ));
+                    })}
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleUploadThumbnail}
+                disabled={!chapter.youtube_video_id || !selectedThumbnailUrl || updatingThumbnail}
+                className="btn-secondary w-full text-xs font-bold py-2.5 flex items-center justify-center gap-1.5 border border-white/10"
+              >
+                {updatingThumbnail ? '⚡ Uploading...' : '🖼️ Update YouTube Thumbnail'}
+              </button>
             </div>
           </div>
 
           <div className="glass-panel p-6 border border-white/5 rounded-2xl flex flex-col gap-5 bg-white/[0.01]">
             <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                🚀 YouTube SEO & Publisher Panel
-              </h4>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                  🚀 YouTube SEO & Publisher Panel
+                </h4>
+                {chapter.published ? (
+                  <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/20 border border-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 block animate-pulse" />
+                    Published
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-bold text-gray-400 bg-white/5 px-2 py-0.5 rounded-full">
+                    Draft (Not Posted)
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={handleSuggestMetadata}
-                disabled={suggestingMeta || !ytTitle || !ytDescription}
+                disabled={suggestingMeta || !ytTitle || !ytDescription || !!chapter.youtube_video_id}
                 className="text-xs font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 bg-transparent border-0 cursor-pointer disabled:opacity-40"
               >
                 {suggestingMeta ? '⚡ Generating SEO...' : '✨ AI Generate Tags & Category'}
@@ -490,6 +694,7 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
                   placeholder="Enter YouTube title..."
                   value={ytTitle}
                   onChange={(e) => setYtTitle(e.target.value)}
+                  disabled={publishing || !!chapter.youtube_video_id}
                 />
               </div>
               
@@ -499,6 +704,7 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
                   className="form-input text-xs py-2 px-3 bg-black/35 text-white border-0"
                   value={ytCategory}
                   onChange={(e) => setYtCategory(e.target.value)}
+                  disabled={publishing || !!chapter.youtube_video_id}
                 >
                   <option value="24">Entertainment</option>
                   <option value="27">Education</option>
@@ -518,6 +724,7 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
                 placeholder="Enter video description for YouTube search optimization..."
                 value={ytDescription}
                 onChange={(e) => setYtDescription(e.target.value)}
+                disabled={publishing || !!chapter.youtube_video_id}
               />
             </div>
 
@@ -529,6 +736,7 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
                 placeholder="e.g. animation, cartoon, fox, kids story"
                 value={ytTags}
                 onChange={(e) => setYtTags(e.target.value)}
+                disabled={publishing || !!chapter.youtube_video_id}
               />
               {ytTags.split(',').filter(t => t.trim().length > 0).length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-1">
@@ -549,16 +757,26 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
                   className="form-input text-xs py-1.5 px-3 bg-black/35 text-white w-auto border-0"
                   value={publishDate}
                   onChange={(e) => setPublishDate(e.target.value)}
+                  disabled={publishing || !!chapter.youtube_video_id}
                 />
               </div>
 
               <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleSaveMetadata(false)}
+                  disabled={publishing || !!chapter.youtube_video_id}
+                  className="btn-secondary text-xs font-bold py-2 px-4 flex items-center gap-1.5 border border-white/10 disabled:opacity-40"
+                >
+                  💾 Save SEO Settings
+                </button>
+
                 {publishDate ? (
                   <button
                     type="button"
                     onClick={handleScheduleVideo}
-                    disabled={publishing}
-                    className="btn-secondary text-xs font-bold py-2 px-4 flex items-center gap-1.5"
+                    disabled={publishing || !!chapter.youtube_video_id}
+                    className="btn-secondary text-xs font-bold py-2 px-4 flex items-center gap-1.5 disabled:opacity-40"
                   >
                     📅 Schedule Upload
                   </button>
@@ -566,8 +784,8 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
                   <button
                     type="button"
                     onClick={handlePublishVideo}
-                    disabled={publishing}
-                    className="btn-primary text-xs font-bold py-2 px-4 flex items-center gap-1.5"
+                    disabled={publishing || !!chapter.youtube_video_id}
+                    className="btn-primary text-xs font-bold py-2 px-4 flex items-center gap-1.5 disabled:opacity-40"
                   >
                     🚀 Publish Now
                   </button>
@@ -585,15 +803,16 @@ export default function ChapterStoryboard({ backendUrl, stories, setStories }: C
           <div className="flex items-center gap-2">
             <button
               onClick={handleAIGenerateScenes}
-              disabled={compiling}
-              className="btn-primary text-xs font-bold py-2 px-4 shadow-lg shadow-violet-500/25 cursor-pointer bg-violet-600 hover:bg-violet-500 border-0 flex items-center justify-center gap-1.5"
+              disabled={compiling || !!chapter.youtube_video_id}
+              className="btn-primary text-xs font-bold py-2 px-4 shadow-lg shadow-violet-500/25 cursor-pointer bg-violet-600 hover:bg-violet-500 border-0 flex items-center justify-center gap-1.5 disabled:opacity-40"
             >
               {compiling ? '✨ Generating...' : '✨ AI Generate Scenes'}
             </button>
             
             <button
               onClick={handleAddNewScene}
-              className="btn-secondary text-xs font-bold py-2 px-4 border border-violet-500/20 bg-violet-500/5 text-violet-300 hover:bg-violet-500/10 cursor-pointer"
+              disabled={!!chapter.youtube_video_id}
+              className="btn-secondary text-xs font-bold py-2 px-4 border border-violet-500/20 bg-violet-500/5 text-violet-300 hover:bg-violet-500/10 cursor-pointer disabled:opacity-40"
             >
               ➕ Add New Scene
             </button>

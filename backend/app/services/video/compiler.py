@@ -251,7 +251,17 @@ class VideoEngine:
                         y_offset = (seg_clip.h - new_h) // 2
                         seg_clip = seg_clip.cropped(x1=0, y1=y_offset, width=seg_clip.w, height=new_h)
                     
-                    seg_clip = seg_clip.resized(new_width=1080, new_height=1920)
+                    # Safe resize fallback chain supporting MoviePy v1.x and v2.x
+                    try:
+                        seg_clip = seg_clip.resized(width=1080, height=1920)
+                    except (TypeError, AttributeError):
+                        try:
+                            seg_clip = seg_clip.resized(new_size=(1080, 1920))
+                        except (TypeError, AttributeError):
+                            try:
+                                seg_clip = seg_clip.resize(new_width=1080, new_height=1920)
+                            except (TypeError, AttributeError):
+                                seg_clip = seg_clip.resize(width=1080, height=1920)
 
                 seg_clip = seg_clip.with_start(seg["start_time"])
                 segment_clips.append(seg_clip)
@@ -319,11 +329,6 @@ class VideoEngine:
                             .with_duration(4.5)
                             .with_position(("center", 350))) # Top vertical Short area
                 
-                # Soft fade-in animation
-                sub_badge = sub_badge.with_updated_frame_function(
-                    lambda gf, t, badge=sub_badge: gf(t) # base
-                )
-                
                 # Apply custom opacity mask mapping for glassmorphic card fade in
                 if sub_badge.mask:
                     orig_mask = sub_badge.mask
@@ -343,8 +348,9 @@ class VideoEngine:
                 progress_callback(50)
 
             # Step 6: Render progress bar overlay at the very bottom
-            def progress_bar_modifier(get_frame_func, t):
-                frame = get_frame_func(t).copy()
+            orig_bg = background_clip
+            def progress_bar_modifier(t, clip=orig_bg):
+                frame = clip.get_frame(t).copy()
                 bar_h = 14
                 bar_y = 1920 - bar_h
                 progress_pct = t / duration
