@@ -163,6 +163,114 @@ export default function App() {
     }
   };
 
+  // States for tracking background posting automation jobs
+  const [activePostings, setActivePostings] = useState<Record<string, string>>(() => {
+    try {
+      const stored = sessionStorage.getItem('active_postings');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [runningJobs, setRunningJobs] = useState<any[]>([]);
+  const [showProgressWidget, setShowProgressWidget] = useState(true);
+  const [postingToast, setPostingToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    sessionStorage.setItem('active_postings', JSON.stringify(activePostings));
+  }, [activePostings]);
+
+  // Polling hook to query background job status from backend
+  useEffect(() => {
+    const fetchRunningJobs = async () => {
+      try {
+        const res = await fetch(`${backendUrl}/api/video/jobs`);
+        if (res.ok) {
+          const data = await res.json();
+          const allJobs = data.jobs || [];
+          
+          // Find any jobs that are currently active in backend database
+          const activeJobsOnQueue = allJobs.filter((job: any) => 
+            ['queued', 'generating', 'rendering', 'pending', 'processing'].includes(job.status)
+          );
+
+          // Automatically register any active jobs that we aren't tracking yet
+          if (activeJobsOnQueue.length > 0) {
+            setActivePostings(prev => {
+              let updated = false;
+              const next = { ...prev };
+              activeJobsOnQueue.forEach((job: any) => {
+                if (!next[job.job_id]) {
+                  next[job.job_id] = `Active Pipeline Job (${job.job_id.substring(0, 5)})`;
+                  updated = true;
+                }
+              });
+              if (updated) {
+                setShowProgressWidget(true); // Auto expand on new active jobs
+                return next;
+              }
+              return prev;
+            });
+          }
+
+          // Filter jobs that match our session active listings
+          const trackedJobIds = Object.keys(activePostings);
+          if (trackedJobIds.length === 0) {
+            setRunningJobs([]);
+            return;
+          }
+          const matches = allJobs.filter((job: any) => trackedJobIds.includes(job.job_id));
+          setRunningJobs(matches);
+        }
+      } catch (err) {
+        console.error('Error fetching matching jobs:', err);
+      }
+    };
+
+    fetchRunningJobs();
+    const interval = setInterval(fetchRunningJobs, 3000);
+    return () => clearInterval(interval);
+  }, [backendUrl, activePostings]);
+
+  const handleStartPosting = async (idea: any) => {
+    if (!status.youtube_authenticated) {
+      setPostingToast({ message: "YouTube account is not linked! Go to Settings to link your account.", type: "error" });
+      setTimeout(() => setPostingToast(null), 5000);
+      return;
+    }
+
+    setPostingToast({ message: `Queuing auto-generation & upload for: "${idea.title}"...`, type: "success" });
+    setTimeout(() => setPostingToast(null), 5000);
+
+    try {
+      const res = await fetch(`${backendUrl}/api/video/viral-ideas/auto-generate-post`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt_query: idea.prompt_query,
+          idea_title: idea.title
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const jobId = data.job_id;
+        setActivePostings(prev => ({
+          ...prev,
+          [jobId]: idea.title
+        }));
+        setShowProgressWidget(true);
+      } else {
+        const err = await res.json();
+        setPostingToast({ message: err.detail || 'Failed to queue automatic publishing.', type: "error" });
+        setTimeout(() => setPostingToast(null), 5000);
+      }
+    } catch (err: any) {
+      setPostingToast({ message: err.message || 'Connection to backend failed.', type: "error" });
+      setTimeout(() => setPostingToast(null), 5000);
+    }
+  };
+
   useEffect(() => {
     fetchStatusAndSettings();
     // Poll status occasionally
@@ -194,6 +302,7 @@ export default function App() {
               youtubeAuthenticated={status.youtube_authenticated}
               onLoadDemo={setChannelData}
               backendUrl={backendUrl}
+              onStartPosting={handleStartPosting}
             />
           } />
           <Route path="/generator" element={
@@ -269,6 +378,104 @@ export default function App() {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </div>
+
+      {/* ━━━ Global Floating Progress Widget ━━━ */}
+      {runningJobs.length > 0 && showProgressWidget && (
+        <div className="fixed bottom-6 right-6 z-[999] w-80 glass-panel border border-violet-500/30 shadow-2xl p-4 bg-[#111114]/95 animate-slide-up flex flex-col gap-3">
+          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
+              </span>
+              <span className="text-xs font-extrabold uppercase tracking-wider text-violet-300">Posting Status</span>
+            </div>
+            <button 
+              onClick={() => setShowProgressWidget(false)}
+              className="text-gray-500 hover:text-white text-xs cursor-pointer bg-transparent border-0"
+            >
+              Minimize
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-4 max-h-60 overflow-y-auto pr-1">
+            {runningJobs.map((job) => {
+              const title = activePostings[job.job_id] || `Job #${job.job_id.substring(0, 8)}`;
+              const latestLog = job.logs && job.logs.length > 0 ? job.logs[job.logs.length - 1] : 'Queueing job...';
+              const isFinished = ['completed', 'failed'].includes(job.status);
+              
+              return (
+                <div key={job.job_id} className="flex flex-col gap-2 border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-xs font-bold text-gray-200 line-clamp-1 flex-1">{title}</span>
+                    <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full ${
+                      job.status === 'completed' ? 'text-emerald-400 bg-emerald-500/10' :
+                      job.status === 'failed' ? 'text-red-400 bg-red-500/10' :
+                      'text-violet-400 bg-violet-500/10 animate-pulse'
+                    }`}>
+                      {job.status}
+                    </span>
+                  </div>
+
+                  <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        job.status === 'failed' ? 'bg-red-500' : 'bg-gradient-to-r from-violet-500 to-fuchsia-500'
+                      }`}
+                      style={{ width: `${job.progress || 0}%` }}
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-gray-500 truncate max-w-[200px]" title={latestLog}>{latestLog}</span>
+                    <span className="text-violet-400 font-bold font-mono">{job.progress || 0}%</span>
+                  </div>
+
+                  {isFinished && (
+                    <button
+                      onClick={() => {
+                        setActivePostings(prev => {
+                          const next = { ...prev };
+                          delete next[job.job_id];
+                          return next;
+                        });
+                      }}
+                      className="text-[9px] font-bold text-gray-400 hover:text-white mt-1 border border-white/5 hover:border-white/10 rounded py-1 text-center transition-all cursor-pointer bg-transparent"
+                    >
+                      Clear Progress
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ━━━ Global Floating Minimized Tab ━━━ */}
+      {runningJobs.length > 0 && !showProgressWidget && (
+        <button 
+          onClick={() => setShowProgressWidget(true)}
+          className="fixed bottom-6 right-6 z-[999] glass-panel border border-violet-500/30 px-4 py-2.5 rounded-xl bg-violet-950/20 hover:bg-violet-950/40 text-violet-300 text-xs font-bold flex items-center gap-2 shadow-2xl transition-all hover:scale-105 cursor-pointer animate-float"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
+          </span>
+          Posting progress ({runningJobs.filter(j => !['completed', 'failed'].includes(j.status)).length} active)
+        </button>
+      )}
+
+      {/* ━━━ Global Posting Toast ━━━ */}
+      {postingToast && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-2xl border text-sm max-w-sm animate-slide-in ${
+          postingToast.type === 'success' 
+            ? 'bg-emerald-950/90 border-emerald-500/30 text-emerald-300' 
+            : 'bg-red-950/90 border-red-500/30 text-red-300'
+        }`}>
+          {postingToast.message}
+        </div>
+      )}
     </div>
   );
 }

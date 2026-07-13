@@ -20,6 +20,7 @@ interface DashboardProps {
   youtubeAuthenticated: boolean;
   onLoadDemo: (data: any) => void;
   backendUrl: string;
+  onStartPosting: (idea: any) => void;
 }
 
 /* ── Animated Counter Hook ── */
@@ -116,8 +117,9 @@ function TrendWave({ color }: { color: string }) {
   );
 }
 
-export default function Dashboard({ channelData, loading, onRefresh, onNavigate, youtubeAuthenticated, onLoadDemo, backendUrl }: DashboardProps) {
+export default function Dashboard({ channelData, loading, onRefresh, onNavigate, youtubeAuthenticated, onLoadDemo, backendUrl, onStartPosting }: DashboardProps) {
   const [history, setHistory] = React.useState<any[]>([]);
+  const [currentPage, setCurrentPage] = React.useState(1);
 
   React.useEffect(() => {
     const fetchHistory = async () => {
@@ -133,6 +135,15 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
     };
     fetchHistory();
   }, [backendUrl, channelData]);
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [history.length]);
+
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(history.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedHistory = history.slice(startIndex, startIndex + itemsPerPage);
   
   const calculateEngagement = (likes: number, comments: number, views: number) => {
     if (!views) return 0;
@@ -386,220 +397,185 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                     {Icons.create}
                     Create a Short
                   </button>
+                  <button 
+                    onClick={fetchSuggestions} 
+                    className="btn-secondary font-bold text-violet-400 border-violet-500/30 hover:border-violet-500/50 hover:bg-violet-500/5"
+                    disabled={suggestionsLoading}
+                  >
+                    {suggestionsLoading ? (
+                      <span className="animate-spin">{Icons.refresh}</span>
+                    ) : (
+                      Icons.sparkle
+                    )}
+                    Suggest Next Short
+                  </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ━━━ Quick Actions Bar ━━━ */}
-          {channelData && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="quick-action" onClick={() => onNavigate('generator')}>
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500/20 to-violet-600/10 flex items-center justify-center text-violet-400 shrink-0">
-                  {Icons.create}
+          {/* ━━━ AI Viral Idea Suggestion (Inline results drawer) ━━━ */}
+          {channelData && (suggestionsLoading || suggestions.length > 0) && (
+            <div className="glass-panel p-6 bg-gradient-to-br from-violet-500/5 to-pink-500/5 border-violet-500/20 relative animate-slide-up">
+              {/* Close button to reset suggestions */}
+              <button 
+                onClick={() => { setSuggestions([]); }}
+                className="absolute top-4 right-4 text-gray-500 hover:text-gray-300 hover:bg-white/5 w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+              >
+                ✕
+              </button>
+              
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-pink-500/20 flex items-center justify-center text-violet-400 shrink-0 animate-sparkle">
+                  {Icons.sparkle}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold">Create New Short</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">Script → Video → Upload</p>
+                <div>
+                  <h3 className="text-lg font-extrabold mb-0.5">
+                    Gemini AI Suggestions
+                  </h3>
+                  <p className="text-gray-400 text-xs">
+                    Tailored concept ideas generated based on your channel's recent stats and historical performance.
+                  </p>
                 </div>
-                <span className="text-gray-600">{Icons.arrow}</span>
               </div>
 
-              <div className="quick-action" onClick={() => onNavigate('library' as any)}>
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 flex items-center justify-center text-cyan-400 shrink-0">
-                  {Icons.library}
+              {suggestionsLoading && suggestions.length === 0 ? (
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="rounded-xl border border-white/5 p-5 space-y-3">
+                      <div className="skeleton h-5 w-20 rounded" />
+                      <div className="skeleton h-4 w-full rounded" />
+                      <div className="skeleton h-4 w-3/4 rounded" />
+                      <div className="skeleton h-16 w-full rounded-lg" />
+                      <div className="skeleton h-9 w-full rounded-lg" />
+                    </div>
+                  ))}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold">Browse Library</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">Manage generated videos</p>
+              ) : (
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4 animate-slide-up">
+                  {suggestions.map((idea: any, idx: number) => (
+                    <div 
+                      key={idx} 
+                      className="glass-panel p-5 bg-white/[0.01] flex flex-col justify-between gap-4 hover:border-violet-500/30 transition-all duration-300 animate-slide-in"
+                      style={{ animationDelay: `${idx * 100}ms` }}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-[0.65rem] font-extrabold text-white">
+                            {idx + 1}
+                          </span>
+                          <span className="badge badge-violet uppercase tracking-widest">Idea</span>
+                        </div>
+                        <h4 className="text-[0.95rem] font-extrabold mb-2">{idea.title}</h4>
+                        <p className="text-xs text-gray-400 mb-2.5 leading-relaxed">
+                          <strong className="text-gray-300">Premise:</strong> {idea.concept}
+                        </p>
+                        <p className="text-xs text-gray-500 italic mb-3">
+                          <strong>Hook (0–2s):</strong> "{idea.hook}"
+                        </p>
+                        <div className="p-3 bg-black/20 rounded-lg text-[0.78rem] text-emerald-300/80 border-l-2 border-emerald-500/40 leading-relaxed">
+                          <strong className="text-emerald-400">AI Rationale:</strong> {idea.rationale}
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => onStartPosting(idea)} 
+                        className="btn-primary w-full p-2.5 justify-center bg-gradient-to-r from-violet-600 to-pink-600 hover:shadow-violet-500/25"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        Start Posting
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <span className="text-gray-600">{Icons.arrow}</span>
-              </div>
+              )}
             </div>
           )}
 
-          {/* ━━━ Rich Metric Cards ━━━ */}
+
+          {/* ━━━ Rich Metric Cards & Top Performing Spotlight Card ━━━ */}
           {channelData && (
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               {/* Subscribers */}
-              <div className="stat-card p-6">
-                <div className="stat-watermark text-violet-500">{Icons.subscribers}</div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-violet-500" />
-                  <span className="text-[0.8rem] text-gray-400 font-semibold uppercase tracking-wider">Subscribers</span>
+              <div className="stat-card p-6 flex flex-col justify-between min-h-[170px]">
+                <div>
+                  <div className="stat-watermark text-violet-500">{Icons.subscribers}</div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-violet-500" />
+                    <span className="text-[0.8rem] text-gray-400 font-semibold uppercase tracking-wider">Subscribers</span>
+                  </div>
+                  <h3 className="text-3xl font-extrabold text-violet-400 animate-count">
+                    {subCount.toLocaleString()}
+                  </h3>
                 </div>
-                <h3 className="text-3xl font-extrabold text-violet-400 animate-count">
-                  {subCount.toLocaleString()}
-                </h3>
-                <div className="stat-trend text-gray-500">
+                <div className="stat-trend text-gray-500 mt-4">
                   <TrendWave color="#8b5cf6" />
                   <span className="text-violet-400/60 text-[0.7rem]">Lifetime</span>
                 </div>
               </div>
 
               {/* Views */}
-              <div className="stat-card p-6">
-                <div className="stat-watermark text-cyan-500">{Icons.views}</div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-cyan-500" />
-                  <span className="text-[0.8rem] text-gray-400 font-semibold uppercase tracking-wider">Total Views</span>
+              <div className="stat-card p-6 flex flex-col justify-between min-h-[170px]">
+                <div>
+                  <div className="stat-watermark text-cyan-500">{Icons.views}</div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-cyan-500" />
+                    <span className="text-[0.8rem] text-gray-400 font-semibold uppercase tracking-wider">Total Views</span>
+                  </div>
+                  <h3 className="text-3xl font-extrabold text-white animate-count">
+                    {viewCount.toLocaleString()}
+                  </h3>
                 </div>
-                <h3 className="text-3xl font-extrabold text-white animate-count">
-                  {viewCount.toLocaleString()}
-                </h3>
-                <div className="stat-trend text-gray-500">
+                <div className="stat-trend text-gray-500 mt-4">
                   <TrendWave color="#06b6d4" />
                   <span className="text-cyan-400/60 text-[0.7rem]">All time</span>
                 </div>
               </div>
 
               {/* Uploads */}
-              <div className="stat-card p-6">
-                <div className="stat-watermark text-pink-500">{Icons.uploads}</div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-pink-500" />
-                  <span className="text-[0.8rem] text-gray-400 font-semibold uppercase tracking-wider">Total Uploads</span>
+              <div className="stat-card p-6 flex flex-col justify-between min-h-[170px]">
+                <div>
+                  <div className="stat-watermark text-pink-500">{Icons.uploads}</div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-pink-500" />
+                    <span className="text-[0.8rem] text-gray-400 font-semibold uppercase tracking-wider">Total Uploads</span>
+                  </div>
+                  <h3 className="text-3xl font-extrabold text-pink-400 animate-count">
+                    {videoCount.toLocaleString()}
+                  </h3>
                 </div>
-                <h3 className="text-3xl font-extrabold text-pink-400 animate-count">
-                  {videoCount.toLocaleString()}
-                </h3>
-                <div className="stat-trend text-gray-500">
+                <div className="stat-trend text-gray-500 mt-4">
                   <TrendWave color="#ec4899" />
                   <span className="text-pink-400/60 text-[0.7rem]">Videos</span>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* ━━━ AI Viral Idea Suggestion ━━━ */}
-          {channelData && (
-            <div className="glass-panel p-0 overflow-hidden relative" style={{ borderImage: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2)) 1' }}>
-              <div className="p-6 mesh-gradient relative">
-                <div className="flex justify-between items-center flex-wrap gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-pink-500/20 flex items-center justify-center text-violet-400 shrink-0 animate-sparkle">
-                      {Icons.sparkle}
+              {/* Top Performing Short spotlight card */}
+              {bestVideo && (
+                <div className="spotlight-card p-6 flex flex-col justify-between min-h-[170px]">
+                  <div>
+                    <div className="stat-watermark text-amber-500 opacity-[0.03]">{Icons.trophy}</div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                      <span className="text-[0.8rem] text-gray-400 font-semibold uppercase tracking-wider font-bold">Top Short</span>
                     </div>
+                    <h4 className="text-sm font-extrabold text-white line-clamp-2 leading-snug" title={bestVideo.title}>
+                      {bestVideo.title}
+                    </h4>
+                  </div>
+                  <div className="mt-4 border-t border-white/5 pt-3 flex justify-between items-center">
                     <div>
-                      <h3 className="text-lg font-extrabold mb-1">
-                        Suggest Next Viral Short
-                      </h3>
-                      <p className="text-gray-400 text-sm max-w-[620px] m-0 leading-relaxed">
-                        Let Gemini analyze your channel stats, subscribers, and high-view competitor themes to design a scroll-stopping premise for your audience.
-                      </p>
+                      <span className="text-[0.65rem] text-gray-500 block uppercase font-bold">Views</span>
+                      <span className="text-sm font-extrabold text-white">{bestVideo.views.toLocaleString()}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[0.65rem] text-gray-500 block uppercase font-bold">Engagement</span>
+                      <span className="text-sm font-extrabold text-amber-400">
+                        {calculateEngagement(bestVideo.likes, bestVideo.comments, bestVideo.views).toFixed(1)}%
+                      </span>
                     </div>
                   </div>
-                  <button 
-                    onClick={fetchSuggestions} 
-                    className="btn-primary py-3 px-6 font-bold" 
-                    disabled={suggestionsLoading}
-                  >
-                    {suggestionsLoading ? (
-                      <>
-                        <span className="animate-spin inline-block">{Icons.refresh}</span>
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        {Icons.sparkle}
-                        Suggest Next Short
-                      </>
-                    )}
-                  </button>
                 </div>
-
-                {/* Skeleton loading state */}
-                {suggestionsLoading && suggestions.length === 0 && (
-                  <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4 mt-6">
-                    {[1,2,3].map(i => (
-                      <div key={i} className="rounded-xl border border-white/5 p-5 space-y-3">
-                        <div className="skeleton h-5 w-20 rounded" />
-                        <div className="skeleton h-4 w-full rounded" />
-                        <div className="skeleton h-4 w-3/4 rounded" />
-                        <div className="skeleton h-16 w-full rounded-lg" />
-                        <div className="skeleton h-9 w-full rounded-lg" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {suggestions.length > 0 && (
-                  <div className="flex flex-col gap-4 mt-6">
-                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest">AI-Generated Ideas</h4>
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
-                      {suggestions.map((idea: any, idx: number) => (
-                        <div 
-                          key={idx} 
-                          className="glass-panel p-5 bg-white/[0.01] flex flex-col justify-between gap-4 hover:border-violet-500/30 transition-all duration-300 animate-slide-in"
-                          style={{ animationDelay: `${idx * 100}ms` }}
-                        >
-                          <div>
-                            <div className="flex items-center gap-2 mb-3">
-                              <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-[0.65rem] font-extrabold text-white">
-                                {idx + 1}
-                              </span>
-                              <span className="badge badge-violet uppercase tracking-widest">Idea</span>
-                            </div>
-                            <h4 className="text-[0.95rem] font-extrabold mb-2">{idea.title}</h4>
-                            <p className="text-xs text-gray-400 mb-2.5 leading-relaxed">
-                              <strong className="text-gray-300">Premise:</strong> {idea.concept}
-                            </p>
-                            <p className="text-xs text-gray-500 italic mb-3">
-                              <strong>Hook (0–2s):</strong> "{idea.hook}"
-                            </p>
-                            <div className="p-3 bg-black/20 rounded-lg text-[0.78rem] text-emerald-300/80 border-l-2 border-emerald-500/40 leading-relaxed">
-                              <strong className="text-emerald-400">AI Rationale:</strong> {idea.rationale}
-                            </div>
-                          </div>
-                          <button 
-                            onClick={() => handleUseSuggestion(idea.prompt_query)} 
-                            className="btn-primary w-full p-2.5 justify-center"
-                          >
-                            {Icons.play}
-                            Write Script for This
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ━━━ Top Performing — Spotlight Card ━━━ */}
-          {bestVideo && (
-            <div className="spotlight-card p-6 flex justify-between items-center flex-wrap gap-5">
-              <div className="flex items-start gap-4">
-                <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 shrink-0 animate-float">
-                  {Icons.trophy}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="badge badge-amber uppercase tracking-widest">
-                      ★ Top Performing Short
-                    </span>
-                  </div>
-                  <h4 className="text-base font-extrabold mb-1">
-                    {bestVideo.title}
-                  </h4>
-                  <p className="text-gray-500 text-xs">
-                    Published {formatDate(bestVideo.publishedAt)} · Duration: {bestVideo.duration}s
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="stat-card px-5 py-3 text-center" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                  <span className="text-[0.65rem] text-gray-500 font-bold uppercase tracking-wider block">Views</span>
-                  <div className="text-xl font-extrabold text-white mt-1">{bestVideo.views.toLocaleString()}</div>
-                </div>
-                <div className="stat-card px-5 py-3 text-center" style={{ background: 'rgba(234,179,8,0.04)' }}>
-                  <span className="text-[0.65rem] text-gray-500 font-bold uppercase tracking-wider block">Engagement</span>
-                  <div className="text-xl font-extrabold text-amber-400 mt-1">
-                    {calculateEngagement(bestVideo.likes, bestVideo.comments, bestVideo.views).toFixed(1)}%
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -617,44 +593,48 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
               {channelData.recent_shorts.length === 0 ? (
                 <p className="text-gray-400 text-[0.95rem]">No vertical shorts found in your recent uploads.</p>
               ) : (
-                <div className="flex flex-col gap-2">
-                  {/* Column headers */}
-                  <div className="grid grid-cols-[1fr_120px_110px_90px_80px_80px_90px] gap-3 px-4 py-2 text-[0.7rem] text-gray-500 font-bold uppercase tracking-wider">
-                    <span>Title</span>
-                    <span>Category</span>
-                    <span>Date</span>
-                    <span className="text-right">Views</span>
-                    <span className="text-right">Likes</span>
-                    <span className="text-right">Comments</span>
-                    <span className="text-right">Engagement</span>
-                  </div>
-                  {channelData.recent_shorts.map((video: ShortVideo, idx: number) => {
-                    const engRate = calculateEngagement(video.likes, video.comments, video.views);
-                    const badge = getEngagementBadge(engRate);
-                    return (
-                      <div 
-                        key={video.id} 
-                        className="card-row grid grid-cols-[1fr_120px_110px_90px_80px_80px_90px] gap-3 items-center animate-slide-in"
-                        style={{ animationDelay: `${idx * 50}ms` }}
-                      >
-                        <span className="font-semibold text-[0.9rem] truncate">{video.title}</span>
-                        <span className="text-xs text-gray-400 font-medium truncate">{video.category_name || 'Entertainment'}</span>
-                        <span className="text-gray-500 text-xs">{formatDate(video.publishedAt)}</span>
-                        <span className="font-bold text-[0.9rem] text-right">{video.views.toLocaleString()}</span>
-                        <span className="text-gray-400 text-sm text-right">{video.likes.toLocaleString()}</span>
-                        <span className="text-gray-400 text-sm text-right">{video.comments.toLocaleString()}</span>
-                        <span className="flex justify-end">
-                          <span className={`badge ${badge.cls}`}>{badge.label}</span>
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left min-w-[800px]">
+                    <thead>
+                      <tr className="border-b border-white/5 text-[0.75rem] text-gray-500 font-bold uppercase tracking-wider">
+                        <th className="pb-3 pt-2 font-semibold">Title</th>
+                        <th className="pb-3 pt-2 font-semibold">Category</th>
+                        <th className="pb-3 pt-2 font-semibold">Date</th>
+                        <th className="pb-3 pt-2 font-semibold text-right">Views</th>
+                        <th className="pb-3 pt-2 font-semibold text-right">Likes</th>
+                        <th className="pb-3 pt-2 font-semibold text-right">Comments</th>
+                        <th className="pb-3 pt-2 font-semibold text-right">Engagement</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.04]">
+                      {channelData.recent_shorts.map((video: ShortVideo, idx: number) => {
+                        const engRate = calculateEngagement(video.likes, video.comments, video.views);
+                        const badge = getEngagementBadge(engRate);
+                        return (
+                          <tr 
+                            key={video.id} 
+                            className="hover:bg-white/[0.015] transition-colors group"
+                          >
+                            <td className="py-3.5 font-semibold text-[0.9rem] text-white max-w-[280px] truncate group-hover:text-violet-400 transition-colors">{video.title}</td>
+                            <td className="py-3.5 text-xs text-gray-400 font-medium">{video.category_name || 'Entertainment'}</td>
+                            <td className="py-3.5 text-gray-500 text-xs">{formatDate(video.publishedAt)}</td>
+                            <td className="py-3.5 font-bold text-[0.9rem] text-right">{video.views.toLocaleString()}</td>
+                            <td className="py-3.5 text-gray-400 text-sm text-right">{video.likes.toLocaleString()}</td>
+                            <td className="py-3.5 text-gray-400 text-sm text-right">{video.comments.toLocaleString()}</td>
+                            <td className="py-3.5 text-right">
+                              <span className={`badge ${badge.cls}`}>{badge.label}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
           )}
 
-          {/* ━━━ Compilation History — Card Rows ━━━ */}
+          {/* ━━━ Compilation History — Proper Table ━━━ */}
           {history.length > 0 && (
             <div className="glass-panel p-6 flex flex-col gap-4">
               <div className="flex items-center justify-between">
@@ -665,59 +645,110 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                 <span className="text-xs text-gray-500 font-semibold">{history.length} videos</span>
               </div>
               
-              <div className="flex flex-col gap-2">
-                {/* Column headers */}
-                <div className="grid grid-cols-[1fr_130px_180px_150px_100px] gap-3 px-4 py-2 text-[0.7rem] text-gray-500 font-bold uppercase tracking-wider">
-                  <span>Title</span>
-                  <span>Date</span>
-                  <span>Filename</span>
-                  <span>Status</span>
-                  <span className="text-right">Actions</span>
-                </div>
-                {history.map((item: any, idx: number) => (
-                  <div 
-                    key={idx} 
-                    className="card-row grid grid-cols-[1fr_130px_180px_150px_100px] gap-3 items-center animate-slide-in"
-                    style={{ animationDelay: `${idx * 50}ms` }}
-                  >
-                    <span className="font-semibold text-[0.9rem] truncate">{item.title}</span>
-                    <span className="text-gray-500 text-xs">{formatDate(item.created_at)}</span>
-                    <span className="text-gray-500 font-mono text-[0.7rem] truncate">{item.filename}</span>
-                    <span>
-                      {item.posted ? (
-                        <a 
-                          href={`https://youtube.com/watch?v=${item.youtube_id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="badge badge-green hover:opacity-80 transition-opacity no-underline"
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                          Posted · {item.youtube_id}
-                        </a>
-                      ) : (
-                        <span className="badge badge-amber">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                          Ready to Post
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-right">
-                      <button
-                        onClick={() => {
-                          sessionStorage.setItem('active_video_history', JSON.stringify({
-                            filename: item.filename,
-                            title: item.title
-                          }));
-                          onNavigate('generator');
-                        }}
-                        className="btn-ghost text-violet-400 hover:text-violet-300 text-xs font-bold"
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left min-w-[800px]">
+                  <thead>
+                    <tr className="border-b border-white/5 text-[0.75rem] text-gray-500 font-bold uppercase tracking-wider">
+                      <th className="pb-3 pt-2 font-semibold">Title</th>
+                      <th className="pb-3 pt-2 font-semibold">Date Compiled</th>
+                      <th className="pb-3 pt-2 font-semibold">Filename</th>
+                      <th className="pb-3 pt-2 font-semibold">YouTube Status</th>
+                      <th className="pb-3 pt-2 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {paginatedHistory.map((item: any, idx: number) => (
+                      <tr 
+                        key={idx} 
+                        className="hover:bg-white/[0.015] transition-colors group"
                       >
-                        Studio {Icons.arrow}
-                      </button>
-                    </span>
-                  </div>
-                ))}
+                        <td className="py-3.5 font-semibold text-[0.9rem] text-white max-w-[280px] truncate group-hover:text-pink-400 transition-colors">{item.title}</td>
+                        <td className="py-3.5 text-gray-500 text-xs">{formatDate(item.created_at)}</td>
+                        <td className="py-3.5 text-gray-500 font-mono text-[0.7rem] max-w-[180px] truncate">{item.filename}</td>
+                        <td className="py-3.5">
+                          {item.posted ? (
+                            <a 
+                              href={`https://youtube.com/watch?v=${item.youtube_id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="badge badge-green hover:opacity-80 transition-opacity no-underline"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                              Posted · {item.youtube_id}
+                            </a>
+                          ) : (
+                            <span className="badge badge-amber">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                              Ready to Post
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 text-right">
+                          <button
+                            onClick={() => {
+                              sessionStorage.setItem('active_video_history', JSON.stringify({
+                                filename: item.filename,
+                                title: item.title
+                              }));
+                              onNavigate('generator');
+                            }}
+                            className="btn-ghost text-violet-400 hover:text-violet-300 text-xs font-bold p-0 inline-flex items-center gap-1"
+                          >
+                            Studio {Icons.arrow}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+
+              {/* Pagination controls footer */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-2 flex-wrap gap-3">
+                  <span className="text-xs text-gray-500 font-medium">
+                    Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, history.length)} of {history.length} compilations
+                  </span>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="btn-secondary py-1.5 px-3 text-xs disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      Previous
+                    </button>
+
+                    <div className="flex items-center gap-1.5">
+                      {Array.from({ length: totalPages }).map((_, i) => {
+                        const pageNum = i + 1;
+                        const isActive = pageNum === currentPage;
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition-all ${
+                              isActive
+                                ? 'bg-violet-600 text-white shadow-md shadow-violet-600/10'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="btn-secondary py-1.5 px-3 text-xs disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>

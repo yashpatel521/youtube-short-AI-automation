@@ -20,7 +20,12 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate }
   const [videos, setVideos] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activePreview, setActivePreview] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [videos.length]);
   
   // Upload Modal States
   const [uploadVideo, setUploadVideo] = useState<HistoryItem | null>(null);
@@ -177,6 +182,11 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate }
     }
   };
 
+  const itemsPerPage = 8;
+  const totalPages = Math.ceil(videos.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedVideos = videos.slice(startIndex, startIndex + itemsPerPage);
+
   return (
     <PageShell
       title="Video Gallery"
@@ -215,185 +225,236 @@ export default function Library({ backendUrl, youtubeAuthenticated, onNavigate }
             Go to Creator Studio
           </button>
         </div>
-      ) : viewMode === 'table' ? (
-        <div className="glass-panel p-6 flex flex-col">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left min-w-[700px]">
-              <thead>
-                <tr className="border-b border-white/5 text-gray-400 font-semibold text-xs uppercase tracking-wider">
-                  <th className="p-3">Video Title</th>
-                  <th className="p-3">Date Created</th>
-                  <th className="p-3">Filename</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {videos.map((video) => (
-                  <tr key={video.id} className="border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.01] transition-all">
-                    <td className="p-3.5 font-bold text-sm text-gray-200 max-w-[240px] truncate">
+      ) : (
+        <>
+          {viewMode === 'table' ? (
+            <div className="glass-panel p-6 flex flex-col">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left min-w-[700px]">
+                  <thead>
+                    <tr className="border-b border-white/5 text-gray-400 font-semibold text-xs uppercase tracking-wider">
+                      <th className="p-3">Video Title</th>
+                      <th className="p-3">Date Created</th>
+                      <th className="p-3">Filename</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedVideos.map((video) => (
+                      <tr key={video.id} className="border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.01] transition-all">
+                        <td className="p-3.5 font-bold text-sm text-gray-200 max-w-[240px] truncate">
+                          {video.title}
+                        </td>
+                        <td className="p-3.5 text-gray-400 text-xs">
+                          {formatDate(video.created_at)}
+                        </td>
+                        <td className="p-3.5 text-gray-500 font-mono text-xs">
+                          {video.filename}
+                        </td>
+                        <td className="p-3.5">
+                          {video.posted ? (
+                            <span className="text-[0.65rem] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                              Posted
+                            </span>
+                          ) : (
+                            <span className="text-[0.65rem] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full">
+                              Local
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3.5 text-right flex gap-2 justify-end items-center text-xs">
+                          <button 
+                            onClick={() => setActivePreview(video.filename)}
+                            className="text-violet-400 hover:text-violet-300 font-bold cursor-pointer bg-transparent border-0"
+                          >
+                            Play
+                          </button>
+                          <span className="text-gray-700">|</span>
+                          <a 
+                            href={`${backendUrl}/api/video/preview/${video.filename}`}
+                            download={video.filename}
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="text-gray-400 hover:text-white font-bold"
+                          >
+                            Download
+                          </a>
+                          <span className="text-gray-700">|</span>
+                          {video.posted ? (
+                            <a 
+                              href={`https://youtube.com/watch?v=${video.youtube_id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-emerald-400 hover:text-emerald-300 font-bold"
+                            >
+                              View Live
+                            </a>
+                          ) : (
+                            <button 
+                              onClick={() => handleOpenUpload(video)} 
+                              disabled={!youtubeAuthenticated}
+                              className="text-violet-400 hover:text-violet-300 font-bold cursor-pointer bg-transparent border-0 disabled:opacity-50"
+                            >
+                              Publish
+                            </button>
+                          )}
+                          <span className="text-gray-700">|</span>
+                          <button
+                            onClick={() => handleDeleteVideo(video.filename)}
+                            className="text-red-400 hover:text-red-300 font-bold cursor-pointer bg-transparent border-0"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-slide-up">
+              {paginatedVideos.map((video) => (
+                <div key={video.id} className="glass-panel p-4 flex flex-col gap-4 group hover:border-violet-500/25 transition-all">
+                  
+                  {/* Thumbnail Container */}
+                  <div 
+                    className="aspect-[9/16] bg-black/60 rounded-xl relative overflow-hidden flex items-center justify-center cursor-pointer group-hover:shadow-[0_0_15px_rgba(139,92,246,0.15)] transition-all"
+                    onClick={() => setActivePreview(video.filename)}
+                  >
+                    {/* Floating Delete Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteVideo(video.filename);
+                      }}
+                      className="absolute top-3 right-3 w-8 h-8 rounded-lg bg-black/60 hover:bg-red-600/90 flex items-center justify-center text-gray-400 hover:text-white border border-white/5 cursor-pointer z-20 transition-all opacity-0 group-hover:opacity-100"
+                      title="Delete Video"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                    </button>
+                    <div className="w-12 h-12 rounded-full bg-violet-600/90 flex items-center justify-center text-white opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all z-10">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3.5 z-1">
+                      <span className="text-[0.65rem] text-gray-400 font-medium">
+                        {formatDate(video.created_at)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Video Title Details */}
+                  <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                    <h4 className="font-bold text-sm text-gray-200 truncate group-hover:text-violet-400 transition-colors" title={video.title}>
                       {video.title}
-                    </td>
-                    <td className="p-3.5 text-gray-400 text-xs">
-                      {formatDate(video.created_at)}
-                    </td>
-                    <td className="p-3.5 text-gray-500 font-mono text-xs">
-                      {video.filename}
-                    </td>
-                    <td className="p-3.5">
+                    </h4>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[0.7rem] text-gray-500 font-mono truncate">
+                        {video.filename}
+                      </span>
                       {video.posted ? (
-                        <span className="text-[0.65rem] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                        <span className="text-[0.65rem] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full shrink-0">
                           Posted
                         </span>
                       ) : (
-                        <span className="text-[0.65rem] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full">
+                        <span className="text-[0.65rem] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full shrink-0">
                           Local
                         </span>
                       )}
-                    </td>
-                    <td className="p-3.5 text-right flex gap-2 justify-end items-center text-xs">
-                      <button 
-                        onClick={() => setActivePreview(video.filename)}
-                        className="text-violet-400 hover:text-violet-300 font-bold cursor-pointer bg-transparent border-0"
-                      >
-                        Play
-                      </button>
-                      <span className="text-gray-700">|</span>
+                    </div>
+                  </div>
+
+                  {/* Actions Grid */}
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    <a 
+                      href={`${backendUrl}/api/video/preview/${video.filename}`}
+                      download={video.filename}
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="btn-secondary py-2 text-xs text-center justify-center"
+                    >
+                      Download
+                    </a>
+                    
+                    {video.posted ? (
                       <a 
-                        href={`${backendUrl}/api/video/preview/${video.filename}`}
-                        download={video.filename}
-                        target="_blank" 
+                        href={`https://youtube.com/watch?v=${video.youtube_id}`}
+                        target="_blank"
                         rel="noreferrer"
-                        className="text-gray-400 hover:text-white font-bold"
+                        className="btn-primary py-2 text-xs text-center justify-center bg-emerald-600 hover:bg-emerald-500"
                       >
-                        Download
+                        View Live
                       </a>
-                      <span className="text-gray-700">|</span>
-                      {video.posted ? (
-                        <a 
-                          href={`https://youtube.com/watch?v=${video.youtube_id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-emerald-400 hover:text-emerald-300 font-bold"
-                        >
-                          View Live
-                        </a>
-                      ) : (
-                        <button 
-                          onClick={() => handleOpenUpload(video)} 
-                          disabled={!youtubeAuthenticated}
-                          className="text-violet-400 hover:text-violet-300 font-bold cursor-pointer bg-transparent border-0 disabled:opacity-50"
-                        >
-                          Publish
-                        </button>
-                      )}
-                      <span className="text-gray-700">|</span>
-                      <button
-                        onClick={() => handleDeleteVideo(video.filename)}
-                        className="text-red-400 hover:text-red-300 font-bold cursor-pointer bg-transparent border-0"
+                    ) : (
+                      <button 
+                        onClick={() => handleOpenUpload(video)} 
+                        disabled={!youtubeAuthenticated}
+                        className="btn-primary py-2 text-xs justify-center"
                       >
-                        Delete
+                        Publish
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {videos.map((video) => (
-            <div key={video.id} className="glass-panel p-4 flex flex-col gap-4 group hover:border-violet-500/25 transition-all">
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Pagination controls footer */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-8 flex-wrap gap-3">
+              <span className="text-xs text-gray-500 font-medium">
+                Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, videos.length)} of {videos.length} videos
+              </span>
               
-              {/* Thumbnail Container */}
-              <div 
-                className="aspect-[9/16] bg-black/60 rounded-xl relative overflow-hidden flex items-center justify-center cursor-pointer group-hover:shadow-[0_0_15px_rgba(139,92,246,0.15)] transition-all"
-                onClick={() => setActivePreview(video.filename)}
-              >
-                {/* Floating Delete Button */}
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteVideo(video.filename);
-                  }}
-                  className="absolute top-3 right-3 w-8 h-8 rounded-lg bg-black/60 hover:bg-red-600/90 flex items-center justify-center text-gray-400 hover:text-white border border-white/5 cursor-pointer z-20 transition-all opacity-0 group-hover:opacity-100"
-                  title="Delete Video"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="btn-secondary py-1.5 px-3 text-xs disabled:opacity-30 disabled:pointer-events-none"
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    <line x1="10" y1="11" x2="10" y2="17" />
-                    <line x1="14" y1="11" x2="14" y2="17" />
-                  </svg>
+                  Previous
                 </button>
-                <div className="w-12 h-12 rounded-full bg-violet-600/90 flex items-center justify-center text-white opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all z-10">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3.5 z-1">
-                  <span className="text-[0.65rem] text-gray-400 font-medium">
-                    {formatDate(video.created_at)}
-                  </span>
-                </div>
-              </div>
 
-              {/* Video Title Details */}
-              <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                <h4 className="font-bold text-sm text-gray-200 truncate group-hover:text-violet-400 transition-colors" title={video.title}>
-                  {video.title}
-                </h4>
-                <div className="flex justify-between items-center gap-2">
-                  <span className="text-[0.7rem] text-gray-500 font-mono truncate">
-                    {video.filename}
-                  </span>
-                  {video.posted ? (
-                    <span className="text-[0.65rem] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full shrink-0">
-                      Posted
-                    </span>
-                  ) : (
-                    <span className="text-[0.65rem] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full shrink-0">
-                      Local
-                    </span>
-                  )}
+                <div className="flex items-center gap-1.5">
+                  {Array.from({ length: totalPages }).map((_, i) => {
+                    const pageNum = i + 1;
+                    const isActive = pageNum === currentPage;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition-all ${
+                          isActive
+                            ? 'bg-violet-600 text-white shadow-md shadow-violet-600/10'
+                            : 'text-gray-400 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
 
-              {/* Actions Grid */}
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                <a 
-                  href={`${backendUrl}/api/video/preview/${video.filename}`}
-                  download={video.filename}
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="btn-secondary py-2 text-xs text-center justify-center"
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="btn-secondary py-1.5 px-3 text-xs disabled:opacity-30 disabled:pointer-events-none"
                 >
-                  Download
-                </a>
-                
-                {video.posted ? (
-                  <a 
-                    href={`https://youtube.com/watch?v=${video.youtube_id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn-primary py-2 text-xs text-center justify-center bg-emerald-600 hover:bg-emerald-500"
-                  >
-                    View Live
-                  </a>
-                ) : (
-                  <button 
-                    onClick={() => handleOpenUpload(video)} 
-                    disabled={!youtubeAuthenticated}
-                    className="btn-primary py-2 text-xs justify-center"
-                  >
-                    Publish
-                  </button>
-                )}
+                  Next
+                </button>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Video Preview Overlay Modal */}

@@ -110,10 +110,6 @@ export default function Ideas({ backendUrl, channelData, onNavigate }: IdeasProp
     }
   };
 
-  useEffect(() => {
-    fetchIdeas(false);
-  }, [backendUrl, channelData]);
-
   const handleGenerateShort = (prompt: string) => {
     sessionStorage.setItem('generator_prompt', prompt);
     onNavigate('generator');
