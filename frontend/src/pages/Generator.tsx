@@ -29,6 +29,7 @@ interface GeneratorProps {
 export default function Generator({ backendUrl, channelData, settings: _settings }: GeneratorProps) {
   // Creator states
   const [topic, setTopic] = useState('');
+  const [style, setStyle] = useState('dark_mystery');
   const [generatingScript, setGeneratingScript] = useState(false);
   const [scriptData, setScriptData] = useState<ScriptPackage | null>(null);
 
@@ -198,6 +199,7 @@ export default function Generator({ backendUrl, channelData, settings: _settings
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: topic,
+          style: style,
           gemini_key: geminiKey,
           previous_shorts: channelData?.recent_shorts || [],
           competitor_shorts: []
@@ -342,23 +344,56 @@ export default function Generator({ backendUrl, channelData, settings: _settings
       <div className="flex flex-col gap-6">
 
         {/* AI Prompt Input Card */}
-        <div className="glass-panel p-6 flex flex-col gap-4">
-          <h2 className="text-lg font-bold">AI Creative Prompter</h2>
-          
+        <div className="glass-panel p-6 flex flex-col gap-5">
+          <div>
+            <h2 className="text-lg font-bold">AI Creative Prompter</h2>
+            <p className="text-xs text-gray-400 mt-1">Select a high-converting viral format to maximize watch time, retention, and subscribers.</p>
+          </div>
 
+          {/* Viral Style Preset Selector */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Choose Viral Format Style</label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+              {[
+                { id: 'dark_mystery', name: 'Dark History & Mysteries', icon: '🕵️', desc: 'Creepy secrets & ancient anomalies' },
+                { id: 'psychology_tricks', name: 'Dark Psychology Hacks', icon: '🧠', desc: 'Mind games & subconscious tests' },
+                { id: 'would_you_rather', name: 'Would You Rather', icon: '⚔️', desc: 'High-stakes survival dilemmas' },
+                { id: 'sci_fi_what_if', name: 'Sci-Fi What-If', icon: '🌌', desc: 'Hypothetical apocalyptic physics' },
+                { id: 'reddit_story_twist', name: 'Story Plot Twists', icon: '📜', desc: 'Suspense stories with ending twist' },
+                { id: 'funny_comedy', name: 'POV Comedy', icon: '🎭', desc: 'Relatable humor & funny twists' },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setStyle(s.id)}
+                  className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all ${
+                    style === s.id
+                      ? 'bg-violet-600/20 border-violet-500 shadow-lg shadow-violet-500/10'
+                      : 'bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-white">
+                    <span>{s.icon}</span>
+                    <span>{s.name}</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400 leading-tight">{s.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="flex gap-3">
             <input
               type="text"
               className="form-input"
-              placeholder="What topic should this Short cover? (e.g. '3 Dark Truths About Money', 'Why Time Flies')"
+              placeholder="What topic should this Short cover? (e.g. '3 Dark Truths About Money', 'Alcatraz Hidden Door')"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               disabled={generatingScript || compiling}
             />
             <button
               onClick={generateScript}
-              className="btn-primary"
+              className="btn-primary flex-shrink-0"
               disabled={generatingScript || compiling || !topic.trim()}
             >
               {generatingScript ? 'Writing Script...' : 'Generate Script'}

@@ -33,7 +33,8 @@ def get_automation_status() -> Dict[str, Any]:
     """Retrieves current running status, logs, settings, and processed videos history."""
     try:
         running = automation_worker.is_running()
-        keywords = db_service.get_automation_state("keywords", automation_worker.default_keywords)
+        keywords = "✨ Gemini AI Dynamic Keyword Engine (Auto-applied)"
+        last_keyword = db_service.get_automation_state("last_keyword", "Auto-generating...")
         interval = int(db_service.get_automation_state("interval_seconds", str(automation_worker.default_interval)))
         
         logs = db_service.get_automation_logs(limit=100)
@@ -42,12 +43,14 @@ def get_automation_status() -> Dict[str, Any]:
         return {
             "running": running,
             "keywords": keywords,
+            "last_keyword": last_keyword,
             "interval_seconds": interval,
             "logs": logs,
             "processed": processed
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve status: {str(e)}")
+
 
 @router.post("/config")
 def update_automation_config(req: AutomationConfigRequest):

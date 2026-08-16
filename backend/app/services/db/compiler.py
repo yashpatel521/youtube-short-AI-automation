@@ -1,10 +1,6 @@
 from typing import List, Dict, Any, Optional
 
 from app.services.db.connection import init_db, reset_db_connections
-from app.services.db.stories import (
-    get_stories_db, save_story_db, delete_story_db,
-    update_scene_image_db, update_chapter_video_db
-)
 from app.services.db.queue import (
     get_history_db, add_history_entry_db, mark_history_as_posted_db,
     delete_history_entry_db, get_job_db, get_all_jobs_db,
@@ -101,22 +97,6 @@ class DBService:
 
     def delete_scheduled_upload(self, filename: str):
         delete_scheduled_upload_db(filename)
-
-    # --- Story Studio Operations ---
-    def get_stories(self) -> List[Dict[str, Any]]:
-        return get_stories_db()
-
-    def save_story(self, story: Dict[str, Any]):
-        save_story_db(story)
-
-    def delete_story(self, story_id: str):
-        delete_story_db(story_id)
-
-    def update_scene_image(self, scene_id: str, image_url: str, image_urls: List[str]):
-        update_scene_image_db(scene_id, image_url, image_urls)
-
-    def update_chapter_video(self, chapter_id: str, compiled_video: str):
-        update_chapter_video_db(chapter_id, compiled_video)
 
     def reset_db(self):
         """Drops all database tables, empties media directories, and re-seeds default data templates."""

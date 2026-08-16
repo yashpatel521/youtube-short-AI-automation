@@ -11,13 +11,15 @@ const Icon = ({ children }: { children: React.ReactNode }) => (
 const icons = {
   dashboard: <Icon><rect x="3" y="3" width="7" height="9" /><rect x="14" y="3" width="7" height="5" /><rect x="14" y="12" width="7" height="9" /><rect x="3" y="16" width="7" height="5" /></Icon>,
   generator: <Icon><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></Icon>,
-  story: <Icon><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></Icon>,
   library: <Icon><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></Icon>,
   ideas: <Icon><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .6 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /><path d="M9 18h6" /><path d="M10 22h4" /></Icon>,
   queue: <Icon><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></Icon>,
   quality: <Icon><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="m9 12 2 2 4-4" /></Icon>,
   automation: <Icon><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M12 2v4M12 6H8M12 6h4M5 11V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2M9 15h.01M15 15h.01" /></Icon>,
   settings: <Icon><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></Icon>,
+  remixer: <Icon><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></Icon>,
+  analytics: <Icon><path d="M12 20V10M18 20V4M6 20v-6" /></Icon>,
+  funny: <Icon><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></Icon>,
 };
 
 /* ── Nav Sections Configuration ── */
@@ -27,7 +29,8 @@ const NAV_SECTIONS = [
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: icons.dashboard, path: '/dashboard' },
       { id: 'generator', label: 'Video Studio', icon: icons.generator, path: '/generator' },
-      { id: 'story_studio', label: 'Story Studio', icon: icons.story, path: '/story_studio' },
+      { id: 'funny_studio', label: 'Funny Studio', icon: icons.funny, path: '/funny_studio' },
+      { id: 'remixer', label: 'Viral Remix Lab', icon: icons.remixer, path: '/remixer' },
     ],
   },
   {
@@ -42,6 +45,7 @@ const NAV_SECTIONS = [
     label: 'Analyze',
     items: [
       { id: 'ideas', label: 'Viral Ideas', icon: icons.ideas, path: '/ideas' },
+      { id: 'analytics', label: 'Viral Analytics', icon: icons.analytics, path: '/analytics' },
       { id: 'quality', label: 'Quality Lab', icon: icons.quality, path: '/quality' },
     ],
   },

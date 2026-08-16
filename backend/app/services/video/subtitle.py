@@ -34,7 +34,15 @@ def render_subtitle_image(phrase: List[Dict[str, Any]], active_idx: int, highlig
     draw = ImageDraw.Draw(img)
 
     try:
-        font_path = "C:\\Windows\\Fonts\\impact.ttf"
+        # Check if text contains Devanagari (Hindi) characters
+        is_devanagari = any(0x0900 <= ord(c) <= 0x097F for c in "".join(w["word"] for w in phrase))
+        if is_devanagari:
+            font_path = "C:\\Windows\\Fonts\\Nirmala.ttf"
+            if not os.path.exists(font_path):
+                font_path = "C:\\Windows\\Fonts\\mangal.ttf"
+        else:
+            font_path = "C:\\Windows\\Fonts\\impact.ttf"
+            
         font = ImageFont.truetype(font_path, 80)
     except Exception:
         font = ImageFont.load_default()

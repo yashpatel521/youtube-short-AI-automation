@@ -9,6 +9,9 @@ class VideoMetadataResponse(BaseModel):
     tags: List[str] = Field(description="A list of 10 to 15 optimized, search-friendly tags/keywords for this YouTube Short.")
     category_id: str = Field(description="The numeric YouTube Category ID (e.g., '28' for Science & Technology, '27' for Education, '24' for Entertainment, '22' for People & Blogs, etc.) that best fits the video content.")
 
+class TrendingKeywordsResponse(BaseModel):
+    keywords: List[str] = Field(description="List of 5 trending viral search keywords/topics for YouTube Shorts.")
+
 # Define the structured output schemas
 class ScriptSegment(BaseModel):
     video_description: str = Field(description="A descriptive summary of the video visuals for this segment.")
@@ -41,21 +44,20 @@ class ShortIdea(BaseModel):
 class IdeaList(BaseModel):
     suggestions: List[ShortIdea] = Field(description="List of suggested viral video concepts")
 
-class StorySegment(BaseModel):
-    title: str = Field(description="The short title of this chapter (e.g. 'Discovery', 'The Forest Portal', 'The Flying Ship').")
-    narration: str = Field(description="The spoken narration text for this chapter/segment of the story. Must be highly descriptive and readable (approx 25-30 words).")
-    image_prompts: List[str] = Field(description="A list of exactly 3 sequential illustration prompts representing consecutive visual beats to keep the video dynamically moving.")
+class AnalyticsShortsSuggestion(BaseModel):
+    title: str = Field(description="Attention-grabbing title for the new Short.")
+    concept: str = Field(description="The underlying concept or storyline.")
+    hook: str = Field(description="The opening 2-second scroll-stopping hook.")
+    pexels_query: str = Field(description="2-3 word search query for stock backgrounds.")
+    rationale: str = Field(description="Why this specific idea was generated based on the top-viewed shorts analysis.")
+    predicted_virality_score: int = Field(description="A score from 1-100 representing how viral this is likely to go.")
 
-class StoryPackage(BaseModel):
-    title: str = Field(description="The title of the story.")
-    chapters: List[StorySegment] = Field(description="The sequential chapters/segments of the story. For a 4-5 minute video, generate exactly 24 chapters. Each chapter's narration should be around 25-30 words, totaling 600-720 words.")
-
-
-class SceneNarrationResponse(BaseModel):
-    narration: str = Field(description="The spoken narration text for this scene. Must be highly descriptive and readable, approx 25-30 words.")
-
-class SceneImagePromptsResponse(BaseModel):
-    image_prompts: List[str] = Field(description="Exactly 3 sequential illustration prompts representing consecutive visual beats matching the narration.")
+class ShortsAnalysisReport(BaseModel):
+    top_performing_topics: List[str] = Field(description="The top 2-3 topics/themes that performed best on the channel.")
+    success_factors: List[str] = Field(description="Key patterns (e.g. style, timing, pacing, hooks) found in high-view count videos.")
+    optimum_duration_range: str = Field(description="Estimated best duration range based on views (e.g., '20-25 seconds').")
+    growth_tips: List[str] = Field(description="Actionable tips to increase subscriber retention and CTR.")
+    suggestions: List[AnalyticsShortsSuggestion] = Field(description="Exactly 5 highly optimized viral short suggestions based on the analysis.")
 
 class AIService:
     def __init__(self):
@@ -70,15 +72,88 @@ class AIService:
             return genai.Client(api_key=key)
         return self.client
 
+    def analyze_previous_shorts(
+        self,
+        previous_shorts: List[dict],
+        api_key_override: Optional[str] = None
+    ) -> ShortsAnalysisReport:
+        """
+        Analyzes the user's historical YouTube Shorts to find success factors, optimum duration,
+        and outputs a report alongside 5 viral recommended concepts.
+        """
+        client = self._get_client(api_key_override)
+        if not client:
+            raise ValueError("Gemini API key is not configured. Please add it to settings.")
+
+        # Prepare context summaries
+        prev_context = ""
+        if previous_shorts:
+            # Sort by views desc
+            sorted_shorts = sorted(previous_shorts, key=lambda x: x.get('views', 0), reverse=True)
+            prev_context = "My previous Shorts performance (sorted by view count descending):\n"
+            for idx, s in enumerate(sorted_shorts[:15]):
+                prev_context += f"{idx+1}. Title: '{s.get('title')}' | Views: {s.get('views', 0)} | Likes: {s.get('likes', 0)} | Comments: {s.get('comments', 0)} | Duration: {s.get('duration', 0)}s | Tags: {', '.join(s.get('tags', []))}\n"
+        else:
+            prev_context = "No previous Shorts data available. This is a fresh channel. Focus on current general viral trends in mind-bending facts/science/history.\n"
+
+        prompt = f"""
+You are an elite YouTube Shorts Growth Analyst and Viral Strategist.
+I want you to analyze our channel's previous performance data to extract patterns of virality, and then generate 5 brand new high-performing Shorts recommendations.
+
+Analyze:
+1. What topics/hooks work best based on the views.
+2. The optimal duration range that gets the highest views/engagement.
+3. The common denominators in our most successful titles and tags.
+
+Here is our performance history:
+{prev_context}
+
+Task:
+Produce a detailed analysis report:
+- Identify the top performing topics.
+- Extract key success factors.
+- Recommend optimum duration range.
+- Provide general growth/retention tips.
+- Generate exactly 5 highly viral Short recommendations tailored to these insights. Each suggested short must have:
+  - Title (viral clickability under 50 chars)
+  - Concept
+  - Hook (opening 2-seconds)
+  - Pexels Query (for stock backdrop assets)
+  - Rationale (referencing the data)
+  - Predicted Virality Score (1 to 100, where 100 is extremely likely to go viral based on standard algorithm metrics)
+
+Return the structured response matching the ShortsAnalysisReport schema.
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=ShortsAnalysisReport,
+                temperature=0.75,
+            ),
+        )
+
+        try:
+            data = json.loads(response.text)
+            return ShortsAnalysisReport(**data)
+        except Exception as e:
+            print(f"Error parsing Shorts Analysis report: {e}")
+            if hasattr(response, "text"):
+                raw = json.loads(response.text)
+                return ShortsAnalysisReport(**raw)
+            raise RuntimeError(f"Failed to generate structured analysis report: {str(e)}")
+
     def generate_script(
         self,
         topic: str,
-        previous_shorts: List[dict],
-        competitor_shorts: List[dict],
+        previous_shorts: List[dict] = [],
+        competitor_shorts: List[dict] = [],
+        style: str = "dark_mystery",
         api_key_override: Optional[str] = None
     ) -> ScriptPackage:
         """
-        Generates a viral script package based on competitor research and channel history using Gemini.
+        Generates a viral script package based on competitor research, channel history, and viral format style.
         """
         client = self._get_client(api_key_override)
         if not client:
@@ -101,28 +176,74 @@ class AIService:
         else:
             comp_context = "No competitor Shorts data provided. Focus on industry-standard viral hooks.\n"
 
+        style_instructions = {
+            "dark_mystery": (
+                "FORMAT: Dark History & Eerie Unsolved Mysteries.\n"
+                "Focus on chilling, eerie, or unexplained historical events, secret files, or ancient mysteries.\n"
+                "HOOK (0-3s): Must evoke instant chills or intense mystery (e.g. 'In 1962, 3 men vanished from Alcatraz, but what police found 50 years later will chill you...').\n"
+                "ENDING & SUBSCRIBER CTA: Build suspense until segment 3. End with a mind-blowing reveal + CTA: 'Subscribe for Part 2 before this gets erased.'"
+            ),
+            "psychology_tricks": (
+                "FORMAT: Dark Psychology Hacks & Mind Games.\n"
+                "Focus on subconscious tricks, body language reading, or dark psychological hacks.\n"
+                "HOOK (0-3s): Direct viewer challenge (e.g. 'If someone looks at your lips while talking, do NOT ignore it. Here is what they are secretly thinking...').\n"
+                "ENDING & SUBSCRIBER CTA: Deliver the psychological trick + CTA: 'Subscribe to master human psychology daily.'"
+            ),
+            "would_you_rather": (
+                "FORMAT: High-Stakes Impossible Dilemmas & Would You Rather.\n"
+                "Focus on 2 extreme survival choices or psychological dilemmas (Scenario A vs Scenario B).\n"
+                "HOOK (0-3s): High-stakes survival hook (e.g. '99% of people fail this impossible survival test. Door 1 vs Door 2. Which do you pick?').\n"
+                "ENDING & SUBSCRIBER CTA: Force viewers to comment ('Comment your choice below and subscribe to see if you survive tomorrow.')."
+            ),
+            "sci_fi_what_if": (
+                "FORMAT: Sci-Fi 'What If?' & Mind-Bending Hypotheses.\n"
+                "Focus on apocalyptic or crazy scientific possibilities (e.g. 'What if Earth stopped spinning for 5 seconds?' or 'What if humans slept for 100 years?').\n"
+                "HOOK (0-3s): Instant apocalyptic hook with intense visual urgency.\n"
+                "ENDING & SUBSCRIBER CTA: Mind-blowing scientific conclusion + CTA: 'Subscribe if you would survive this scenario.'"
+            ),
+            "reddit_story_twist": (
+                "FORMAT: Reddit-Style Dark Suspense & Story Plot Twists.\n"
+                "Focus on gripping storytelling with an unbelievable plot twist in the last 3 seconds.\n"
+                "HOOK (0-3s): Suspenseful opening line ('My grandfather left me a locked box with one rule: NEVER open it after midnight...').\n"
+                "ENDING & SUBSCRIBER CTA: Shocking final twist + CTA: 'Subscribe for true horror stories.'"
+            ),
+            "funny_comedy": (
+                "FORMAT: Viral POV Comedy & Sarcastic Twists.\n"
+                "Focus on hilarious everyday situations, sarcastic life advice, or unexpected comedy punchlines.\n"
+                "HOOK (0-3s): Laugh-out-loud relatable POV hook.\n"
+                "ENDING & SUBSCRIBER CTA: Comedic punchline + CTA: 'Subscribe for daily laughs.'"
+            ),
+            "mind_bending_facts": (
+                "FORMAT: Mind-Bending Cosmic & Human Anomalies.\n"
+                "Focus on unbelievable secrets about the universe, human body, or high tech that shock the brain.\n"
+                "HOOK (0-3s): Mind-blowing scroll stopper.\n"
+                "ENDING & SUBSCRIBER CTA: CTA: 'Subscribe for daily brain upgrades.'"
+            )
+        }.get(style, "FORMAT: Dark History & Eerie Unsolved Mysteries.")
+
         prompt = f"""
-You are an expert YouTube Shorts Algorithm Growth Strategist.
-I want to make a viral 20-30 second vertical video about the topic: "{topic}".
+You are an World-Class YouTube Shorts Algorithm Growth Strategist and Viral Content Creator.
+I want to make a high-retention 20-30 second vertical Short about the topic: "{topic}".
+
+Viral Style & Execution Guide:
+{style_instructions}
 
 Here is our channel's performance history:
 {prev_context}
 
-Here are the highest performing competitor Shorts in this niche:
+Here are top viral competitor Shorts in this niche:
 {comp_context}
 
-Analyze the hooks, keyword structure, visual pacing, and tag strategies that made the competitor videos go viral, and consider what worked (or didn't) in our previous videos.
-
 Task:
-Generate a ScriptPackage that will rank highly, engage viewers in the first 2 seconds, hold their attention, and prompt them to like/subscribe.
+Generate a ScriptPackage optimized for extreme watch retention (>90%), high subscriber conversion, and viral click-through rate.
 
-CRITICAL CONSTRAINTS:
-1. The total spoken text across ALL segments (the sum of the 'narration' fields) MUST be between 50 and 70 words. This is vital to keep the video duration strictly within 20 to 30 seconds.
-2. In the 'video_description' fields, describe vivid looping motion graphics, abstract particle simulations, or dynamic 3D renders.
-3. In the 'animation_details' fields, provide frame-by-frame details for caption transitions, text scales, camera movements, or aesthetic effects.
-4. In the 'tone' fields, specify the exact emotional delivery, pace, and vocal tone instructions.
-5. Keep the language natural, punchy, and conversational.
-6. In the 'pexels_query' fields, output a simple 2-3 word search query representing a highly realistic stock video matching this segment's visual description.
+CRITICAL VIRAL CONSTRAINTS:
+1. The total spoken text across ALL segments (sum of 'narration' fields) MUST be between 50 and 70 words (strictly 20-30 seconds speech duration).
+2. The opening 2 seconds MUST grab attention instantly with a high-curiosity hook.
+3. Include an explicit subscriber call-to-action in the final segment tailored to the style.
+4. In 'video_description' fields, describe vivid looping visual scenes, dark atmospheric backgrounds, dramatic lighting, or abstract motion graphics.
+5. In 'pexels_query' fields, output a simple 2-3 word search query representing cinematic stock video matching the segment (e.g. 'dark forest mist', 'brain glowing', 'storm ocean', 'scary doorway').
+6. In 'tone' fields, specify vocal delivery instructions (e.g. 'dramatic whisper', 'urgent serious', 'mysterious slow', 'confident bold').
 """
 
         response = client.models.generate_content(
@@ -147,6 +268,66 @@ CRITICAL CONSTRAINTS:
                 raw_json = json.loads(response.text)
                 return ScriptPackage(**raw_json)
             raise RuntimeError(f"Failed to generate structured script: {str(e)}")
+
+    def generate_funny_script(
+        self,
+        topic: Optional[str] = None,
+        funny_format: str = "pov",
+        previous_shorts: List[dict] = [],
+        competitor_shorts: List[dict] = [],
+        api_key_override: Optional[str] = None
+    ) -> ScriptPackage:
+        """
+        Generates a hilarious comedy script optimized for viral YouTube Shorts (high temperature 0.85).
+        """
+        client = self._get_client(api_key_override)
+        if not client:
+            raise ValueError("Gemini API key is not configured. Please add it to your settings.")
+
+        format_instructions = {
+            "pov": "POV / Relatable Comedy style. Focus on funny everyday situations that everyone experiences but nobody talks about.",
+            "expectation_vs_reality": "Expectation vs Reality style. Contrast an ideal situation with absurdly disappointing reality.",
+            "sarcastic": "Sarcastic & Witty Life Advice. Use dry humor, ironies, and deadpan sarcasm.",
+            "plot_twist": "Absurd Plot Twist. Start completely serious for 5 seconds, then deliver a hilarious unexpected turn.",
+            "meme": "Meme Reaction style. Rapid funny commentary paired with funny stock reaction clips.",
+            "animal_funny_fails": "Animal Funny Fails style. Hilarious animal clips (cats failing jumps, silly dogs, clumsy pets) with witty play-by-play commentary and comedic timing."
+        }.get(funny_format, "POV / Relatable Comedy style.")
+
+        topic_instruction = f'about the topic: "{topic}"' if topic and topic.strip() else 'about a brand new, wildly creative and viral comedy topic invented by you based on current internet humor trends'
+
+        prompt = f"""
+You are a World-Class Standup Comedian and Viral YouTube Shorts Creator.
+Generate a hilarious, laugh-out-loud funny 20-30 second vertical video script {topic_instruction}.
+
+Comedy Format: {format_instructions}
+
+CRITICAL COMEDY CONSTRAINTS:
+1. Opening Hook (0-3s): Must grab attention immediately with a relatable or absurd line.
+2. Total word count across ALL segments MUST be between 50 and 70 words so the speech finishes in 20-30 seconds.
+3. Include a hilarious punchline around the 15-20 second mark.
+4. Ensure the final sentence loops seamlessly back into the first sentence for infinite replay value.
+5. In 'pexels_query' fields, output search queries for funny stock videos, reaction memes, or humorous animal/human expressions (e.g. 'funny confused dog', 'dramatic reaction', 'shocked person').
+6. In 'tone' fields, specify comedic delivery instructions (e.g., 'sarcastic', 'deadpan', 'dramatic whisper', 'over-enthusiastic').
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=ScriptPackage,
+                temperature=0.85,
+            ),
+        )
+
+        try:
+            data = json.loads(response.text)
+            return ScriptPackage(**data)
+        except Exception as e:
+            if hasattr(response, "text"):
+                raw_json = json.loads(response.text)
+                return ScriptPackage(**raw_json)
+            raise RuntimeError(f"Failed to generate funny script: {str(e)}")
 
     def suggest_viral_ideas(
         self,
@@ -180,8 +361,8 @@ CRITICAL CONSTRAINTS:
 
         prompt = f"""
 You are an expert YouTube Shorts Channel Growth Consultant and viral content creator.
-Analyze our channel's performance and competitor trends, and suggest exactly 3 viral Short fact-based ideas.
-Rather than generic topics or animals, focus on top trending mind-bending facts (e.g. in space, psychology, historical mysteries, futuristic science, brain facts) that have extreme clickability and high viral potential.
+Analyze our channel's performance and competitor trends, and suggest exactly 3 viral Short concepts.
+Rather than overused simple facts, focus on high-converting viral formats (such as Dark History Mysteries, Dark Psychology Hacks, Impossible Survival Dilemmas / Would You Rather, Sci-Fi What-If Scenarios, or Reddit-style Story Twists) that naturally force viewers to stop scrolling, watch to the end, and subscribe.
 
 Our channel's previous performance:
 {prev_context}
@@ -190,7 +371,7 @@ Top viral competitor Shorts:
 {comp_context}
 
 Task:
-Suggest exactly 3 viral Short fact-based ideas. Return them structured in JSON matching the response schema.
+Suggest exactly 3 viral Short concepts across these high-converting formats. Return them structured in JSON matching the response schema.
 """
 
         response = client.models.generate_content(
@@ -248,8 +429,8 @@ Suggest exactly 3 viral Short fact-based ideas. Return them structured in JSON m
 
         prompt = f"""
 You are an expert YouTube Shorts Channel Growth Consultant and viral content creator.
-Analyze our channel's performance and competitor trends, and suggest exactly 10 viral Short fact-based ideas.
-Avoid generic topics or overused animal categories. Focus on mind-bending, highly engaging facts (e.g. unknown historical secrets, psychology hacks, cosmic mysteries, human body anomalies, technology mysteries) that naturally make viewers stop scrolling and rewatch.
+Analyze our channel's performance and competitor trends, and suggest exactly 10 viral Short concepts.
+Avoid generic facts or overused categories. Focus on high-retention viral formats (e.g. Dark History Mysteries, Dark Psychology Secrets, Impossible Survival Dilemmas / Would You Rather, Sci-Fi What-If Scenarios, disturbing ocean mysteries, or Reddit Story Twists) that naturally make viewers stop scrolling, rewatch, and subscribe.
 
 Our channel's previous performance:
 {prev_context}
@@ -258,7 +439,7 @@ Top viral competitor Shorts:
 {comp_context}
 
 Task:
-Suggest exactly 10 viral Short fact-based ideas. Return them structured in JSON matching the response schema, containing exactly 10 items in the list.
+Suggest exactly 10 viral Short concepts across these formats. Return them structured in JSON matching the response schema, containing exactly 10 items in the list.
 """
 
         response = client.models.generate_content(
@@ -379,128 +560,47 @@ Generate the VideoMetadataResponse JSON. Make tags highly relevant to search tra
             print(f"Error generating YouTube metadata via Gemini: {e}")
             return VideoMetadataResponse(tags=["shorts", "video"], category_id="24")
 
-    def generate_story_script(
-        self,
-        topic: str,
-        style: str,
-        duration: int,
-        story_title: Optional[str] = None,
-        previous_context: Optional[str] = None,
-        api_key_override: Optional[str] = None
-    ) -> StoryPackage:
+    def generate_trending_keywords(self, api_key_override: Optional[str] = None) -> List[str]:
         """
-        Generates a structured storytelling script and image storyboard using Gemini.
+        Uses Gemini AI to dynamically generate 5 high-converting, trending search keywords for YouTube Shorts.
         """
         client = self._get_client(api_key_override)
+        fallback = [
+            "dark history secrets",
+            "dark psychology tricks",
+            "unsolved mysteries chilling",
+            "impossible survival choices",
+            "mind bending what if scenarios",
+            "disturbing ocean mysteries"
+        ]
         if not client:
-            raise ValueError("Gemini API key is not configured. Please add it to settings.")
+            return fallback
 
-        style_context = "anime manga illustration style" if style == "anime" else "kids cartoon colorful drawing style"
-        
-        prompt = f"""
-You are an expert children's book author and storyboard designer.
-I want to write a beautiful storytelling script about the topic: "{topic}".
-The desired target video duration is {duration} seconds (approx 4-5 minutes).
+        prompt = """
+You are an expert YouTube Shorts Algorithm Growth Strategist.
+Generate 5 high-converting, viral search keywords/topics for YouTube Shorts right now.
+Focus on high-retention viral niches (e.g. dark history secrets, dark psychology tricks, unsolved mysteries, impossible survival choices, mind-bending what if scenarios, scary plot twists).
+
+Return the structured response matching the TrendingKeywordsResponse schema.
 """
-
-        if story_title:
-            prompt += f"\nThis chapter is part of the story/playlist: '{story_title}'.\n"
-        if previous_context:
-            prompt += f"\nHere is the storyline progression of the previous chapters so far:\n{previous_context}\n\nCRITICAL: The narration and characters in the new chapters MUST continue seamlessly from the plot established in the previous chapters above to maintain narrative continuity!\n"
-
-        prompt += f"""
-Task:
-Generate exactly 24 story chapters/segments. For each chapter, generate:
-1. 'title': A short title for this segment.
-2. 'narration': The spoken narration story text (exactly 25 to 30 words per segment).
-3. 'image_prompts': A list of exactly 3 sequential text-to-image illustration prompts in {style_context}. Each prompt should describe sequential action/beats to keep the video dynamically moving without visual stalls. Describe character, action, setting, colors, and background. Do not use generic style terms.
-
-Make sure the storyline flows logically and keeps children or listeners engaged. Return the output structured in JSON matching the StoryPackage response schema.
-"""
-
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=StoryPackage,
-                temperature=0.8,
-            ),
-        )
-
         try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=TrendingKeywordsResponse,
+                    temperature=0.8,
+                ),
+            )
             data = json.loads(response.text)
-            return StoryPackage(**data)
+            kw_list = data.get("keywords", [])
+            if kw_list:
+                return kw_list
         except Exception as e:
-            raise RuntimeError(f"Failed to generate structured story script: {str(e)}")
+            print(f"Error generating trending keywords via Gemini: {e}")
 
-    def generate_scene_narration(
-        self,
-        previous_context: str,
-        scene_title: str,
-        api_key_override: Optional[str] = None
-    ) -> str:
-        client = self._get_client(api_key_override)
-        if not client:
-            raise ValueError("Gemini API key is not configured.")
+        return fallback
 
-        prompt = f"""
-You are an expert children's story writer.
-I need to write a narration for a scene titled "{scene_title}".
-Here is the context of the story so far (previous scenes and chapters):
-{previous_context}
 
-Task:
-Write a single paragraph of spoken narration for this new scene. It must continue the story plot seamlessly and logically from the context above.
-Keep the narration length strictly between 25 and 30 words.
-"""
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=SceneNarrationResponse,
-                temperature=0.8,
-            ),
-        )
-        try:
-            data = json.loads(response.text)
-            return data.get("narration", "")
-        except Exception as e:
-            raise RuntimeError(f"Failed to generate structured scene narration: {e}")
-
-    def generate_scene_image_prompts(
-        self,
-        narration: str,
-        style: str,
-        api_key_override: Optional[str] = None
-    ) -> List[str]:
-        client = self._get_client(api_key_override)
-        if not client:
-            raise ValueError("Gemini API key is not configured.")
-
-        style_context = "anime manga illustration style" if style == "anime" else "kids cartoon colorful drawing style"
-        prompt = f"""
-You are an expert storyboard artist.
-I have a scene with the following narration:
-"{narration}"
-
-Task:
-Generate exactly 3 sequential text-to-image illustration prompts in {style_context} representing the sequential visual beats / action flow matching this narration.
-Each prompt should describe the characters, action, setting, colors, and background. Do not use generic style terms.
-"""
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=SceneImagePromptsResponse,
-                temperature=0.85,
-            ),
-        )
-        try:
-            data = json.loads(response.text)
-            return data.get("image_prompts", [])
-        except Exception as e:
-            raise RuntimeError(f"Failed to generate structured scene image prompts: {e}")
 

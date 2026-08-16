@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import OUTPUT_DIR
 from app.services import db_service, youtube_service
-from app.routers import youtube, stories, video, settings, automation
+from app.routers import youtube, video, settings, automation
 from app.models import (
     ViralIdeasRequest, 
     AutoGeneratePostRequest, 
@@ -32,7 +32,6 @@ app.add_middleware(
 # Include Modular API Routers
 app.include_router(settings.router)
 app.include_router(youtube.router)
-app.include_router(stories.router)
 app.include_router(video.router)
 app.include_router(automation.router)
 

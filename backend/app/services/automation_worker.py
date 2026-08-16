@@ -16,7 +16,7 @@ class AutopostAutomationWorker:
     def __init__(self):
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
-        self.default_keywords = "AI technology hacks, coding tips, cool tech gear, software engineering secrets"
+        self.default_keywords = "Auto Gemini AI (Dynamic)"
         self.default_interval = 600  # 10 minutes
 
     def start(self):
@@ -91,14 +91,21 @@ class AutopostAutomationWorker:
         from app.services import db_service, youtube_service, ai_service, video_engine
         db_service.add_automation_log("--- Starting New Automation Cycle ---", "INFO")
         
-        # 1. Fetch keywords from settings
-        keywords_str = db_service.get_automation_state("keywords", self.default_keywords)
-        keywords = [k.strip() for k in keywords_str.split(",") if k.strip()]
-        if not keywords:
-            keywords = ["AI technology shorts"]
+        # 1. Auto Gemini Keyword Generation
+        db_service.add_automation_log("Asking Gemini AI to generate trending viral search topics...", "INFO")
+        try:
+            keywords = ai_service.generate_trending_keywords()
+            db_service.add_automation_log(f"Gemini AI dynamically generated search keywords: {', '.join(keywords)}", "INFO")
+        except Exception as e:
+            db_service.add_automation_log(f"Gemini keyword generation fallback used: {str(e)}", "WARNING")
+            keywords = ["dark history secrets", "dark psychology tricks", "unsolved mysteries chilling", "impossible survival choices", "mind bending what if scenarios"]
             
         selected_keyword = random.choice(keywords)
-        db_service.add_automation_log(f"Selected niche keyword for this run: '{selected_keyword}'", "INFO")
+        selected_style = random.choice(["dark_mystery", "psychology_tricks", "would_you_rather", "sci_fi_what_if", "reddit_story_twist"])
+        db_service.set_automation_state("last_keyword", selected_keyword)
+        db_service.set_automation_state("last_style", selected_style)
+        db_service.add_automation_log(f"Selected Gemini AI niche keyword: '{selected_keyword}' | Viral Style: '{selected_style}'", "INFO")
+
 
         # 2. Search for viral competitor Shorts on YouTube
         db_service.add_automation_log(f"Searching YouTube for viral competitor Shorts matching '{selected_keyword}'...", "INFO")
@@ -147,19 +154,19 @@ class AutopostAutomationWorker:
         )
 
         # 4. Generate new script and metadata with Gemini
-        db_service.add_automation_log("Prompting Gemini to write an optimized script and SEO details...", "INFO")
+        db_service.add_automation_log(f"Prompting Gemini to write a high-retention script in style '{selected_style}'...", "INFO")
         prompt = (
-            f"Write a script based on this trending viral video: '{target_video['title']}'. "
+            f"Write a viral script based on this concept: '{target_video['title']}'. "
             f"Original Description: {target_video.get('description', '')}. "
-            "Please regenerate this into a brand-new high-engagement vertical Short script. "
-            "It must have a creative hook, body, and call to action. Keep narration punchy."
+            "Regenerate this into a high-engagement vertical Short script with a high-curiosity hook, storytelling arc, and subscriber CTA."
         )
 
         try:
             script_package = ai_service.generate_script(
                 topic=prompt,
                 previous_shorts=[],
-                competitor_shorts=[target_video]
+                competitor_shorts=[target_video],
+                style=selected_style
             )
         except Exception as e:
             db_service.add_automation_log(f"Gemini script generation failed: {str(e)}", "ERROR")

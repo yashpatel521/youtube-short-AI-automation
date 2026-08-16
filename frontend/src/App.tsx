@@ -7,11 +7,10 @@ import Settings from './pages/Settings';
 import Ideas from './pages/Ideas';
 import Quality from './pages/Quality';
 import Queue from './pages/Queue';
-import StoryStudio from './pages/StoryStudio';
-import StoryDetail from './pages/StoryDetail';
-import ChapterStoryboard from './pages/ChapterStoryboard';
-import SceneEditor from './pages/SceneEditor';
 import AutopostAutomation from './pages/AutopostAutomation';
+import ViralRemixer from './pages/ViralRemixer';
+import ViralAnalytics from './pages/ViralAnalytics';
+import FunnyStudio from './pages/FunnyStudio';
 
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 
@@ -22,7 +21,7 @@ export default function App() {
   // Determine active tab dynamically from URL pathname
   const activeTab = (() => {
     const path = location.pathname.replace('/', '');
-    const validTabs = ['dashboard', 'generator', 'library', 'ideas', 'quality', 'settings', 'queue', 'story_studio', 'autopost'];
+    const validTabs = ['dashboard', 'generator', 'library', 'ideas', 'quality', 'settings', 'queue', 'autopost', 'remixer', 'analytics', 'funny_studio'];
     
     // Auto-route to settings page if auth query parameters are present (from YouTube OAuth redirect)
     const params = new URLSearchParams(location.search);
@@ -32,74 +31,14 @@ export default function App() {
     if (validTabs.includes(path)) {
       return path as any;
     }
-    // Story-related sub-routes should highlight Story Studio
-    if (location.pathname.startsWith('/story')) {
-      return 'story_studio';
-    }
     return 'dashboard';
-  })() as 'dashboard' | 'generator' | 'library' | 'ideas' | 'quality' | 'settings' | 'queue' | 'story_studio' | 'autopost';
+  })() as 'dashboard' | 'generator' | 'library' | 'ideas' | 'quality' | 'settings' | 'queue' | 'autopost' | 'remixer' | 'analytics' | 'funny_studio';
 
-  const setActiveTab = (tab: 'dashboard' | 'generator' | 'library' | 'ideas' | 'quality' | 'settings' | 'queue' | 'story_studio' | 'autopost') => {
+  const setActiveTab = (tab: 'dashboard' | 'generator' | 'library' | 'ideas' | 'quality' | 'settings' | 'queue' | 'autopost' | 'remixer' | 'analytics' | 'funny_studio') => {
     navigate(`/${tab}`);
   };
 
   const [backendUrl] = useState<string>('http://localhost:8000');
-  const [stories, setStoriesState] = useState<any[]>([]);
-
-  // Fetch stories on mount from SQLite database
-  useEffect(() => {
-    const fetchStories = async () => {
-      try {
-        const res = await fetch(`${backendUrl}/api/stories`);
-        if (res.ok) {
-          const data = await res.json();
-          setStoriesState(data.stories || []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch stories from database:', err);
-      }
-    };
-    fetchStories();
-  }, [backendUrl]);
-
-  // Transparent wrapper to sync updates/deletions with SQLite database
-  const setStories = (value: React.SetStateAction<any[]>) => {
-    setStoriesState((prev) => {
-      const next = typeof value === 'function' ? value(prev) : value;
-      
-      // Sync deletions
-      if (next.length < prev.length) {
-        const nextIds = new Set(next.map(s => s.id));
-        prev.forEach(story => {
-          if (!nextIds.has(story.id)) {
-            fetch(`${backendUrl}/api/stories/${story.id}`, { method: 'DELETE' }).catch(console.error);
-          }
-        });
-      } else {
-        // Sync insertions/updates
-        next.forEach(story => {
-          const prevStory = prev.find(p => p.id === story.id);
-          if (!prevStory || JSON.stringify(prevStory) !== JSON.stringify(story)) {
-            fetch(`${backendUrl}/api/stories`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(story)
-            })
-            .then(async res => {
-              if (res.ok) {
-                const data = await res.json();
-                if (data.youtube_playlist_id && story.youtube_playlist_id !== data.youtube_playlist_id) {
-                  setStoriesState(current => current.map(s => s.id === story.id ? { ...s, youtube_playlist_id: data.youtube_playlist_id } : s));
-                }
-              }
-            })
-            .catch(console.error);
-          }
-        });
-      }
-      return next;
-    });
-  };
 
   const [status, setStatus] = useState<{
     status: string;
@@ -128,7 +67,7 @@ export default function App() {
   });
 
   // Fetch status and settings on load
-  const fetchStatusAndSettings = async () => {
+  const fetchStatusAndSettings = async (shouldFetchChannel = false) => {
     try {
       const resStatus = await fetch(`${backendUrl}/api/status`);
       const dataStatus = await resStatus.json();
@@ -138,7 +77,7 @@ export default function App() {
       const dataSettings = await resSettings.json();
       setSettings(dataSettings);
 
-      if (dataStatus.youtube_authenticated) {
+      if (shouldFetchChannel && dataStatus.youtube_authenticated) {
         fetchChannelData();
       }
     } catch (err) {
@@ -182,6 +121,12 @@ export default function App() {
 
   // Polling hook to query background job status from backend
   useEffect(() => {
+    const trackedJobIds = Object.keys(activePostings);
+    if (trackedJobIds.length === 0) {
+      setRunningJobs([]);
+      return;
+    }
+
     const fetchRunningJobs = async () => {
       try {
         const res = await fetch(`${backendUrl}/api/video/jobs`);
@@ -189,36 +134,7 @@ export default function App() {
           const data = await res.json();
           const allJobs = data.jobs || [];
           
-          // Find any jobs that are currently active in backend database
-          const activeJobsOnQueue = allJobs.filter((job: any) => 
-            ['queued', 'generating', 'rendering', 'pending', 'processing'].includes(job.status)
-          );
-
-          // Automatically register any active jobs that we aren't tracking yet
-          if (activeJobsOnQueue.length > 0) {
-            setActivePostings(prev => {
-              let updated = false;
-              const next = { ...prev };
-              activeJobsOnQueue.forEach((job: any) => {
-                if (!next[job.job_id]) {
-                  next[job.job_id] = `Active Pipeline Job (${job.job_id.substring(0, 5)})`;
-                  updated = true;
-                }
-              });
-              if (updated) {
-                setShowProgressWidget(true); // Auto expand on new active jobs
-                return next;
-              }
-              return prev;
-            });
-          }
-
           // Filter jobs that match our session active listings
-          const trackedJobIds = Object.keys(activePostings);
-          if (trackedJobIds.length === 0) {
-            setRunningJobs([]);
-            return;
-          }
           const matches = allJobs.filter((job: any) => trackedJobIds.includes(job.job_id));
           setRunningJobs(matches);
         }
@@ -272,10 +188,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchStatusAndSettings();
-    // Poll status occasionally
-    const interval = setInterval(fetchStatusAndSettings, 10000);
-    return () => clearInterval(interval);
+    fetchStatusAndSettings(true);
   }, []);
 
   return (
@@ -342,37 +255,30 @@ export default function App() {
           <Route path="/autopost" element={
             <AutopostAutomation />
           } />
+          <Route path="/remixer" element={
+            <ViralRemixer 
+              backendUrl={backendUrl} 
+              youtubeAuthenticated={status.youtube_authenticated}
+            />
+          } />
+          <Route path="/analytics" element={
+            <ViralAnalytics 
+              backendUrl={backendUrl} 
+              channelData={channelData}
+              onNavigate={setActiveTab}
+              youtubeAuthenticated={status.youtube_authenticated}
+            />
+          } />
           <Route path="/queue" element={
             <Queue 
               backendUrl={backendUrl} 
             />
           } />
-          <Route path="/story_studio" element={
-            <StoryStudio 
+          <Route path="/funny_studio" element={
+            <FunnyStudio
               backendUrl={backendUrl}
-              stories={stories}
-              setStories={setStories}
-            />
-          } />
-          <Route path="/story/:storyId" element={
-            <StoryDetail 
-              backendUrl={backendUrl} 
-              stories={stories}
-              setStories={setStories}
-            />
-          } />
-          <Route path="/story/:storyId/:chapterIdx" element={
-            <ChapterStoryboard 
-              backendUrl={backendUrl}
-              stories={stories}
-              setStories={setStories}
-            />
-          } />
-          <Route path="/story/:storyId/:chapterIdx/:sceneIdx" element={
-            <SceneEditor 
-              backendUrl={backendUrl}
-              stories={stories}
-              setStories={setStories}
+              channelData={channelData}
+              onNavigate={setActiveTab}
             />
           } />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

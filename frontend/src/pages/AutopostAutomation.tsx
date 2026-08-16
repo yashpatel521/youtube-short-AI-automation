@@ -20,6 +20,7 @@ interface ProcessedVideo {
 export default function AutopostAutomation() {
   const [running, setRunning] = useState(false);
   const [keywords, setKeywords] = useState('');
+  const [lastKeyword, setLastKeyword] = useState('');
   const [intervalMin, setIntervalMin] = useState(10);
   const [logs, setLogs] = useState<AutomationLog[]>([]);
   const [processed, setProcessed] = useState<ProcessedVideo[]>([]);
@@ -37,6 +38,7 @@ export default function AutopostAutomation() {
       const data = await res.json();
       setRunning(data.running);
       setKeywords(data.keywords || '');
+      setLastKeyword(data.last_keyword || '');
       setIntervalMin(Math.round((data.interval_seconds || 600) / 60));
       setLogs(data.logs || []);
       setProcessed(data.processed || []);
@@ -44,6 +46,7 @@ export default function AutopostAutomation() {
       console.error(err);
     }
   };
+
 
   useEffect(() => {
     fetchStatus();
@@ -174,16 +177,19 @@ export default function AutopostAutomation() {
           </div>
         </div>
 
-        {/* Config Summary */}
+        {/* Gemini AI Keyword Engine Summary */}
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Search Keywords / Interval</span>
-            <div className="text-lg font-bold text-zinc-300 mt-1 truncate max-w-[200px]">
-              {keywords.split(',').length} niches / every {intervalMin}m
+            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Keyword Discovery Engine</span>
+            <div className="text-lg font-bold text-violet-400 mt-1 flex items-center gap-1.5">
+              <span>✨ Auto Gemini AI</span>
             </div>
+            <p className="text-[11px] text-zinc-500 mt-0.5 truncate max-w-[200px]">
+              Last run: {lastKeyword || 'Auto-generating...'}
+            </p>
           </div>
-          <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400">
-            ⚙️
+          <div className="w-12 h-12 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 font-bold">
+            ✨
           </div>
         </div>
       </div>
@@ -192,12 +198,22 @@ export default function AutopostAutomation() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Col: Automation Info */}
         <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-6 space-y-4 text-zinc-300">
-          <h3 className="text-base font-semibold text-white">Automation Engine Info</h3>
+          <h3 className="text-base font-semibold text-white flex items-center justify-between">
+            <span>Automation Engine Info</span>
+            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-mono">
+              Auto Gemini Active
+            </span>
+          </h3>
           <div className="space-y-3.5 text-xs">
-            <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800">
-              <span className="font-semibold text-white block mb-1">Target Keywords:</span>
-              <p className="text-zinc-400 font-mono text-[10px] leading-relaxed">
-                {keywords || "Loading default niche keywords..."}
+            <div className="bg-zinc-950 p-3 rounded-lg border border-violet-900/30">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-semibold text-violet-300 flex items-center gap-1">
+                  ✨ Gemini AI Keywords:
+                </span>
+                <span className="text-[9px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded uppercase font-bold">Auto-Applied</span>
+              </div>
+              <p className="text-zinc-400 leading-relaxed">
+                Gemini AI automatically generates high-converting viral topics and cycles across 6 high-retention formats: Dark History Mysteries, Dark Psychology, Would You Rather Dilemmas, Sci-Fi What-Ifs, Reddit Story Twists, and POV Comedy.
               </p>
             </div>
             
@@ -216,6 +232,7 @@ export default function AutopostAutomation() {
             </div>
           </div>
         </div>
+
 
         {/* Right Col: Logging Console Terminal */}
         <div className="lg:col-span-2 bg-zinc-950 border border-zinc-800/80 rounded-xl flex flex-col h-[400px]">

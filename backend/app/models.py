@@ -3,6 +3,14 @@ from pydantic import BaseModel, Field
 
 class ScriptRequest(BaseModel):
     topic: str
+    style: Optional[str] = "dark_mystery" # "dark_mystery", "psychology_tricks", "would_you_rather", "sci_fi_what_if", "reddit_story_twist", "funny_comedy", "mind_bending_facts"
+    previous_shorts: List[dict] = []
+    competitor_shorts: List[dict] = []
+    gemini_key: Optional[str] = None
+
+class FunnyScriptRequest(BaseModel):
+    topic: Optional[str] = None
+    funny_format: Optional[str] = "pov"  # "pov", "expectation_vs_reality", "sarcastic", "plot_twist", "meme"
     previous_shorts: List[dict] = []
     competitor_shorts: List[dict] = []
     gemini_key: Optional[str] = None
@@ -50,21 +58,6 @@ class AutoGeneratePostRequest(BaseModel):
     prompt_query: str
     idea_title: str
 
-class StoryGenerateRequest(BaseModel):
-    topic: str
-    style: str  # "anime" or "kids_cartoon"
-    duration: int  # in seconds (e.g. 240, 300)
-    story_title: Optional[str] = None
-    previous_context: Optional[str] = None
-
-class StoryCompileRequest(BaseModel):
-    title: str
-    style: str
-    voice: str
-    chapters: List[dict]
-    story_id: Optional[str] = None
-    chapter_idx: Optional[int] = None
-
 class SettingsRequest(BaseModel):
     gemini_api_key: Optional[str] = None
     pexels_api_key: Optional[str] = None
@@ -90,30 +83,31 @@ class QualityReviewRequest(BaseModel):
     pacing_rating: int
     notes: str
 
-class SceneNarrationRequest(BaseModel):
-    story_id: str
-    chapter_idx: int
-    scene_title: str
-
-class ScenePromptRequest(BaseModel):
-    narration: str
-    style: str
-
-class SceneImageRequest(BaseModel):
-    story_id: str
-    chapter_idx: int
-    scene_idx: int
-    beat_idx: int
-    prompt: str
-    style: str
-
-class SceneDeleteImageRequest(BaseModel):
-    story_id: str
-    chapter_idx: int
-    scene_idx: int
-    beat_idx: int
-
 class UploadThumbnailRequest(BaseModel):
     video_id: str
     image_filename: str
+
+class RemixRequest(BaseModel):
+    topic: str
+    voice: str = "en-US-GuyNeural"
+    max_duration_mins: Optional[int] = 10
+
+class AnalyticsRequest(BaseModel):
+    previous_shorts: List[dict] = []
+    gemini_key: Optional[str] = None
+
+class AnalyticsShortsSuggestion(BaseModel):
+    title: str = Field(description="Attention-grabbing title for the new Short.")
+    concept: str = Field(description="The underlying concept or storyline.")
+    hook: str = Field(description="The opening 2-second scroll-stopping hook.")
+    pexels_query: str = Field(description="2-3 word search query for stock backgrounds.")
+    rationale: str = Field(description="Why this specific idea was generated based on the top-viewed shorts analysis.")
+    predicted_virality_score: int = Field(description="A score from 1-100 representing how viral this is likely to go.")
+
+class ShortsAnalysisReport(BaseModel):
+    top_performing_topics: List[str] = Field(description="The top 2-3 topics/themes that performed best on the channel.")
+    success_factors: List[str] = Field(description="Key patterns (e.g. style, timing, pacing, hooks) found in high-view count videos.")
+    optimum_duration_range: str = Field(description="Estimated best duration range based on views (e.g., '20-25 seconds').")
+    growth_tips: List[str] = Field(description="Actionable tips to increase subscriber retention and CTR.")
+    suggestions: List[AnalyticsShortsSuggestion] = Field(description="Exactly 5 highly optimized viral short suggestions based on the analysis.")
 

@@ -21,8 +21,8 @@
 | Feature | Description |
 |---|---|
 | **🤖 AI Script Generation** | Gemini-powered script writing with hook optimization, scene breakdown, and subtitle generation |
+| **🎭 Funny Studio** | Dedicated comedy Shorts creator for POV relatable humor, expectation vs reality, sarcastic advice, absurd plot twists, and meme reactions |
 | **🎥 Video Compilation** | Automated video assembly with TTS narration (Edge TTS), stock footage (Pexels), AI image/video generation (Replicate), and animated subtitles |
-| **📖 Story Studio** | Multi-chapter story creation with per-scene storyboarding, editing, and video rendering |
 | **📤 YouTube Upload** | One-click upload to YouTube with OAuth authentication, title/description/tags, and playlist management |
 | **🕵️ Competitor Intelligence** | Analyze competitor YouTube channels to extract viral patterns and trending topics |
 | **💡 Viral Idea Engine** | AI-generated content suggestions based on your channel analytics and competitor research |
@@ -43,7 +43,6 @@ videogenerater/
 │   │   ├── routers/            # API route handlers
 │   │   │   ├── video.py        # /api/video/* endpoints
 │   │   │   ├── youtube.py      # /api/youtube/* OAuth & upload
-│   │   │   ├── stories.py      # /api/stories/* CRUD
 │   │   │   ├── settings.py     # /api/settings/* API key management
 │   │   │   └── automation.py   # /api/automation/* scheduling
 │   │   └── services/           # Business logic layer
@@ -73,9 +72,6 @@ videogenerater/
 │   │   └── pages/              # Application views
 │   │       ├── Dashboard.tsx         # Channel overview & metrics
 │   │       ├── Generator.tsx         # Script → Video pipeline
-│   │       ├── StoryStudio.tsx       # Multi-chapter stories
-│   │       ├── ChapterStoryboard.tsx # Scene-level editing
-│   │       ├── SceneEditor.tsx       # Individual scene editor
 │   │       ├── Library.tsx           # Video gallery & management
 │   │       ├── Analytics.tsx         # Competitor analysis
 │   │       ├── Ideas.tsx             # AI viral idea generation

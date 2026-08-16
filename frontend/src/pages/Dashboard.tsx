@@ -10,6 +10,10 @@ interface ShortVideo {
   publishedAt: string;
   duration: number;
   category_name?: string;
+  upload_status?: string;
+  rejection_reason?: string;
+  region_restricted?: boolean;
+  licensed_content?: boolean;
 }
 
 interface DashboardProps {
@@ -154,6 +158,42 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
     if (rate >= 5) return { cls: 'badge-green', label: `${rate.toFixed(1)}% 🔥` };
     if (rate >= 2) return { cls: 'badge-amber', label: `${rate.toFixed(1)}%` };
     return { cls: 'badge-red', label: `${rate.toFixed(1)}%` };
+  };
+
+  const getCopyrightStatusBadge = (video: ShortVideo) => {
+    if (video.upload_status === 'failed' || video.upload_status === 'rejected') {
+      return (
+        <span className="badge badge-red uppercase tracking-wider font-extrabold text-[9px] flex items-center gap-1">
+          ❌ Rejected ({video.rejection_reason || 'Unknown'})
+        </span>
+      );
+    }
+    if (video.rejection_reason === 'copyright') {
+      return (
+        <span className="badge badge-red uppercase tracking-wider font-extrabold text-[9px] flex items-center gap-1 animate-pulse">
+          ⚠️ Copyright Claim
+        </span>
+      );
+    }
+    if (video.region_restricted) {
+      return (
+        <span className="badge badge-amber uppercase tracking-wider font-extrabold text-[9px] flex items-center gap-1">
+          ⚠️ Region Block
+        </span>
+      );
+    }
+    if (video.licensed_content) {
+      return (
+        <span className="badge badge-violet uppercase tracking-wider font-extrabold text-[9px] flex items-center gap-1">
+          ℹ️ Partner Claim
+        </span>
+      );
+    }
+    return (
+      <span className="badge badge-green uppercase tracking-wider font-extrabold text-[9px] flex items-center gap-1">
+        ✅ Clear
+      </span>
+    );
   };
 
   const formatDate = (dateStr: string) => {
@@ -599,6 +639,7 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                       <tr className="border-b border-white/5 text-[0.75rem] text-gray-500 font-bold uppercase tracking-wider">
                         <th className="pb-3 pt-2 font-semibold">Title</th>
                         <th className="pb-3 pt-2 font-semibold">Category</th>
+                        <th className="pb-3 pt-2 font-semibold">Status / Claims</th>
                         <th className="pb-3 pt-2 font-semibold">Date</th>
                         <th className="pb-3 pt-2 font-semibold text-right">Views</th>
                         <th className="pb-3 pt-2 font-semibold text-right">Likes</th>
@@ -617,6 +658,7 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                           >
                             <td className="py-3.5 font-semibold text-[0.9rem] text-white max-w-[280px] truncate group-hover:text-violet-400 transition-colors">{video.title}</td>
                             <td className="py-3.5 text-xs text-gray-400 font-medium">{video.category_name || 'Entertainment'}</td>
+                            <td className="py-3.5 font-medium">{getCopyrightStatusBadge(video)}</td>
                             <td className="py-3.5 text-gray-500 text-xs">{formatDate(video.publishedAt)}</td>
                             <td className="py-3.5 font-bold text-[0.9rem] text-right">{video.views.toLocaleString()}</td>
                             <td className="py-3.5 text-gray-400 text-sm text-right">{video.likes.toLocaleString()}</td>

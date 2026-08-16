@@ -129,7 +129,7 @@ class YouTubeService:
             if video_ids:
                 # Get full video details (durations and stats)
                 videos_response = youtube.videos().list(
-                    part="snippet,statistics,contentDetails",
+                    part="snippet,statistics,contentDetails,status",
                     id=",".join(video_ids)
                 ).execute()
 
@@ -163,6 +163,11 @@ class YouTubeService:
                     # Add video to list if it fits the Shorts criteria
                     if seconds <= 65:
                         cat_id = item["snippet"].get("categoryId", "24")
+                        status_info = item.get("status", {})
+                        content_details = item.get("contentDetails", {})
+                        region_restriction = content_details.get("regionRestriction", {})
+                        is_restricted = "blocked" in region_restriction or "allowed" in region_restriction
+                        
                         shorts.append({
                             "id": item["id"],
                             "title": item["snippet"]["title"],
@@ -174,7 +179,11 @@ class YouTubeService:
                             "duration": seconds,
                             "tags": item["snippet"].get("tags", []),
                             "category_id": cat_id,
-                            "category_name": categories_map.get(cat_id, "Entertainment")
+                            "category_name": categories_map.get(cat_id, "Entertainment"),
+                            "upload_status": status_info.get("uploadStatus"),
+                            "rejection_reason": status_info.get("rejectionReason"),
+                            "region_restricted": is_restricted,
+                            "licensed_content": content_details.get("licensedContent", False)
                         })
 
             return {

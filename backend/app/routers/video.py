@@ -7,9 +7,10 @@ from fastapi.responses import FileResponse
 from app.config import OUTPUT_DIR, TEMP_DIR
 from app.services import db_service, ai_service, video_engine, youtube_service
 from app.models import (
-    ScriptRequest, CustomScriptRequest, CompileRequest, AutoGeneratePostRequest,
-    SuggestionRequest, ViralIdeasRequest
+    ScriptRequest, FunnyScriptRequest, CustomScriptRequest, CompileRequest, AutoGeneratePostRequest,
+    SuggestionRequest, ViralIdeasRequest, RemixRequest, AnalyticsRequest
 )
+from app.services.shorts_remixer import remix_video_async
 
 router = APIRouter(prefix="/api/video", tags=["video"])
 
@@ -268,6 +269,7 @@ def generate_ai_script(req: ScriptRequest):
             topic=req.topic,
             previous_shorts=req.previous_shorts,
             competitor_shorts=req.competitor_shorts,
+            style=req.style or "dark_mystery",
             api_key_override=req.gemini_key
         )
         return package
@@ -275,6 +277,23 @@ def generate_ai_script(req: ScriptRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gemini script synthesis error: {str(e)}")
+
+@router.post("/script/generate-funny")
+def generate_funny_script_endpoint(req: FunnyScriptRequest):
+    """Uses Gemini API with temperature 0.85 to write a hilarious comedy Shorts script."""
+    try:
+        package = ai_service.generate_funny_script(
+            topic=req.topic,
+            funny_format=req.funny_format or "pov",
+            previous_shorts=req.previous_shorts,
+            competitor_shorts=req.competitor_shorts,
+            api_key_override=req.gemini_key
+        )
+        return package
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Funny script synthesis error: {str(e)}")
 
 @router.post("/viral-ideas/auto-generate-post")
 def auto_generate_and_post_idea(req: AutoGeneratePostRequest, background_tasks: BackgroundTasks):
@@ -288,3 +307,30 @@ def auto_generate_and_post_idea(req: AutoGeneratePostRequest, background_tasks: 
     
     background_tasks.add_task(run_auto_generate_and_post, job_id, req.prompt_query, req.idea_title)
     return {"job_id": job_id}
+
+@router.post("/remix")
+def start_video_remix(req: RemixRequest, background_tasks: BackgroundTasks):
+    """Starts the background pipeline to download, crop, translate to Hindi, compile and publish a Short."""
+    if not youtube_service.is_authenticated():
+        raise HTTPException(status_code=401, detail="YouTube account is not authenticated. Please link your channel in settings first.")
+        
+    job_id = str(uuid.uuid4())
+    db_service.create_job(job_id, status="queued", progress=0)
+    db_service.update_job(job_id, add_log=f"Remix request queued for topic: '{req.topic}' using voice: '{req.voice}'...")
+    
+    background_tasks.add_task(remix_video_async, job_id, req.topic, req.voice, req.max_duration_mins)
+    return {"job_id": job_id}
+
+@router.post("/analyze-shorts")
+def analyze_shorts_endpoint(req: AnalyticsRequest):
+    """Deeply analyzes the channel's highest performing previous shorts and yields a structured report and new recommendations."""
+    try:
+        report = ai_service.analyze_previous_shorts(
+            previous_shorts=req.previous_shorts or [],
+            api_key_override=req.gemini_key
+        )
+        return report
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate channel viral analytics: {str(e)}")
