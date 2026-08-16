@@ -7,29 +7,41 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Gemini](https://img.shields.io/badge/Google_Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
+[![Gemini](https://img.shields.io/badge/Google_Gemini_2.5-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
 [![YouTube](https://img.shields.io/badge/YouTube_API-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://developers.google.com/youtube)
 
-*Generate scripts, compile videos, and publish YouTube Shorts — all from one local desktop app.*
+*Generate high-retention scripts, compile vertical 9:16 videos, remix viral content, and automatically publish YouTube Shorts — all from one desktop studio.*
 
 ---
 
 </div>
 
-## ✨ Features
+## ✨ Features & Viral Formats
 
-| Feature | Description |
+### 🚀 6 High-Converting Viral Shorts Formats
+Move away from generic facts with psychological scroll-stopping formats engineered for >90% retention and subscriber conversions:
+
+- 🕵️ **Dark History & Unsolved Mysteries**: Creepy secrets, ancient anomalies, and chilling 2s curiosity hooks.
+- 🧠 **Dark Psychology Hacks**: Direct viewer challenges, subconscious tricks, and body language reader tests.
+- ⚔️ **Would You Rather & Survival Dilemmas**: High-stakes interactive choices (Scenario A vs B) with forced comment CTAs.
+- 🌌 **Sci-Fi "What If?" Scenarios**: Mind-bending hypothetical physics and apocalyptic countdowns.
+- 📜 **Reddit Story Plot Twists**: Suspenseful personal storytelling with shocking 3-second twist endings.
+- 🎭 **Viral POV Comedy**: Relatable everyday situations, sarcastic advice, and meme punchlines.
+
+---
+
+| Core Feature | Description |
 |---|---|
-| **🤖 AI Script Generation** | Gemini-powered script writing with hook optimization, scene breakdown, and subtitle generation |
-| **🎭 Funny Studio** | Dedicated comedy Shorts creator for POV relatable humor, expectation vs reality, sarcastic advice, absurd plot twists, and meme reactions |
-| **🎥 Video Compilation** | Automated video assembly with TTS narration (Edge TTS), stock footage (Pexels), AI image/video generation (Replicate), and animated subtitles |
-| **📤 YouTube Upload** | One-click upload to YouTube with OAuth authentication, title/description/tags, and playlist management |
-| **🕵️ Competitor Intelligence** | Analyze competitor YouTube channels to extract viral patterns and trending topics |
-| **💡 Viral Idea Engine** | AI-generated content suggestions based on your channel analytics and competitor research |
-| **📊 Dashboard Analytics** | Real-time subscriber, view, and engagement tracking with animated stat cards |
-| **🤖 Autopost Automation** | Schedule and automate video generation + publishing workflows |
-| **🔍 Quality Lab** | Review and QA generated videos before publishing |
-| **📚 Video Gallery** | Browse, preview, and manage all locally generated videos |
+| **🤖 AI Script Studio** | Gemini 2.5 Flash script generation with hook optimization, word count enforcement (50-70 words for 20-30s layout), and subscriber calls-to-action |
+| **🔥 Viral Shorts Remixer** | Download trending Shorts, auto-crop to 9:16 vertical format, translate to Hindi Edge TTS narration, compile, and upload to YouTube in one click |
+| **🎭 Funny Studio** | Stand-up comedy Shorts generator for POV relatable humor, expectation vs reality, sarcasm, and meme reaction formats |
+| **📈 Channel Virality Analytics** | Deeply analyze historical channel video performance, extract success factors, optimal duration ranges, and predict virality scores |
+| **🤖 Autopost Automation** | Autonomous background bot that discovers trending keywords, generates high-retention multi-format Shorts, shields against duplicates, and posts on a schedule |
+| **🎥 Video Compiler Engine** | Automated video assembly with Edge TTS voices, Pexels vertical stock footage, AI image/video support, and highlighted animated subtitles |
+| **📤 YouTube Integration** | One-click OAuth authentication, automated SEO metadata tag generation, category selection, and public/private publishing |
+| **📚 Video Library** | Browse, preview, manage, and track upload status of all locally compiled videos |
+
+---
 
 ## 🏗️ Architecture
 
@@ -39,52 +51,48 @@ videogenerater/
 │   ├── app/
 │   │   ├── main.py             # FastAPI entrypoint & CORS config
 │   │   ├── config.py           # Environment & path configuration
-│   │   ├── models.py           # Pydantic request/response models
+│   │   ├── models.py           # Pydantic request/response schemas
 │   │   ├── routers/            # API route handlers
-│   │   │   ├── video.py        # /api/video/* endpoints
+│   │   │   ├── video.py        # /api/video/* compilation & generation
 │   │   │   ├── youtube.py      # /api/youtube/* OAuth & upload
-│   │   │   ├── settings.py     # /api/settings/* API key management
-│   │   │   └── automation.py   # /api/automation/* scheduling
+│   │   │   ├── settings.py     # /api/settings/* API keys
+│   │   │   └── automation.py   # /api/automation/* background bot control
 │   │   └── services/           # Business logic layer
-│   │       ├── ai_service.py         # Gemini API integration
-│   │       ├── youtube_service.py    # YouTube Data API v3
-│   │       ├── automation_worker.py  # Background task runner
+│   │       ├── ai_service.py         # Gemini API integration & viral prompts
+│   │       ├── youtube_service.py    # YouTube Data API v3 & downloader
+│   │       ├── automation_worker.py  # Autonomous background task runner
+│   │       ├── shorts_remixer.py     # Video downloader, cropper, translator & compiler
 │   │       ├── db/                   # SQLite database layer
-│   │       └── video/                # Video pipeline
-│   │           ├── compiler.py       # MoviePy video assembly
-│   │           ├── speech.py         # Edge TTS narration
-│   │           ├── subtitle.py       # Animated subtitle rendering
-│   │           ├── image_gen.py      # Replicate image generation
-│   │           └── video_gen.py      # Replicate video generation
+│   │       └── video/                # Video assembly pipeline
+│   │           ├── compiler.py       # MoviePy video assembly & rendering
+│   │           ├── speech.py         # Edge TTS voice synthesis
+│   │           └── subtitle.py       # Highlighted animated subtitle overlay
 │   ├── .env                    # API keys & config
 │   ├── requirements.txt        # Python dependencies
-│   └── output/                 # Generated video files
+│   └── output/                 # Generated MP4 video files
 │
 ├── frontend/                   # React + Vite + Tailwind (port 5173)
 │   ├── src/
-│   │   ├── App.tsx             # Root router & state management
-│   │   ├── index.css           # Design system & animations
-│   │   ├── components/         # Shared UI components
-│   │   │   ├── Sidebar.tsx     # Navigation sidebar
-│   │   │   ├── PageShell.tsx   # Layout wrapper
-│   │   │   ├── PageHeader.tsx  # Header with breadcrumbs
-│   │   │   └── StatusIndicator.tsx  # Server/YouTube status
+│   │   ├── App.tsx             # Main layout router
+│   │   ├── index.css           # Design system & visual effects
+│   │   ├── components/         # Navigation & Shell components
 │   │   └── pages/              # Application views
 │   │       ├── Dashboard.tsx         # Channel overview & metrics
-│   │       ├── Generator.tsx         # Script → Video pipeline
-│   │       ├── Library.tsx           # Video gallery & management
-│   │       ├── Analytics.tsx         # Competitor analysis
-│   │       ├── Ideas.tsx             # AI viral idea generation
-│   │       ├── Quality.tsx           # Video QA review
-│   │       ├── Queue.tsx             # Active processing queue
-│   │       ├── AutopostAutomation.tsx # Scheduling UI
-│   │       └── Settings.tsx          # API keys & YouTube OAuth
+│   │       ├── Generator.tsx         # Video Studio with 6 Viral Format Selectors
+│   │       ├── ViralRemixer.tsx      # One-click YouTube video remixer
+│   │       ├── FunnyStudio.tsx       # Dedicated comedy & POV creator
+│   │       ├── ViralAnalytics.tsx    # Channel analysis & virality report
+│   │       ├── AutopostAutomation.tsx # Background scheduler & terminal logs
+│   │       ├── Library.tsx           # Local video gallery
+│   │       └── Settings.tsx          # API credentials & YouTube account connection
 │   └── package.json
 │
-├── run_servers.py              # Orchestrator — launches both servers
+├── run_servers.py              # Orchestrator — launches backend + frontend
 ├── start.bat                   # Windows one-click launcher
-└── database.db                 # SQLite persistent storage
+└── database.db                 # SQLite persistent database
 ```
+
+---
 
 ## 🚀 Quick Start
 
@@ -92,16 +100,11 @@ videogenerater/
 
 - **Python 3.10+** with `pip`
 - **Node.js 18+** with `npm`
-- **ImageMagick** (required by MoviePy for text rendering — [download](https://imagemagick.org/script/download.php))
+- **ImageMagick** (required by MoviePy for subtitle text rendering — [download](https://imagemagick.org/script/download.php))
 
-### 1. Clone & Install
+### 1. Installation
 
-```bash
-git clone https://github.com/PKU-YuanGroup/Helios.git
-cd Helios
-```
-
-**Backend:**
+**Backend setup:**
 ```bash
 cd backend
 python -m venv venv
@@ -110,7 +113,7 @@ venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
-**Frontend:**
+**Frontend setup:**
 ```bash
 cd frontend
 npm install
@@ -118,117 +121,81 @@ npm install
 
 ### 2. Configure API Keys
 
-Edit `backend/.env` with your credentials:
+Edit `backend/.env` or set credentials in the **Settings** page:
 
 ```env
 # Required — AI script generation
 GEMINI_API_KEY=your_gemini_key
 
-# Required — Stock footage for videos
+# Required — Stock footage for background videos
 PEXELS_API_KEY=your_pexels_key
 
 # Optional — AI image/video generation
 REPLICATE_API_TOKEN=your_replicate_token
 
-# Optional — YouTube upload (requires client_secrets.json from Google Cloud Console)
+# Optional — YouTube upload & channel analytics
 YOUTUBE_CLIENT_ID=your_client_id
 YOUTUBE_CLIENT_SECRET=your_client_secret
 ```
 
-| API | Get a Key | Required? |
+| Service | Get API Key | Status |
 |---|---|---|
-| **Gemini** | [Google AI Studio](https://aistudio.google.com/) | ✅ Yes |
-| **Pexels** | [Pexels API](https://www.pexels.com/api/) | ✅ Yes |
-| **Replicate** | [Replicate](https://replicate.com/) | ⬜ Optional |
+| **Gemini** | [Google AI Studio](https://aistudio.google.com/) | ✅ Required |
+| **Pexels** | [Pexels API](https://www.pexels.com/api/) | ✅ Required |
 | **YouTube** | [Google Cloud Console](https://console.cloud.google.com/) | ⬜ Optional |
 
-### 3. Launch
+### 3. Run Studio
 
-**Option A — One-click (Windows):**
+**Windows One-Click:**
 ```bash
 start.bat
 ```
 
-**Option B — Manual:**
+**Manual Launcher:**
 ```bash
 python run_servers.py
 ```
 
-This starts both servers simultaneously:
-- **Backend API:** `http://localhost:8000`
-- **Frontend UI:** `http://localhost:5173`
+- **Backend Server:** `http://localhost:8000`
+- **Frontend Studio:** `http://localhost:5173`
 
-Open `http://localhost:5173` in your browser to access the studio.
+---
 
-## 🔄 Video Generation Pipeline
+## 🔄 Automated Video Pipeline
 
 ```mermaid
 graph LR
-    A[📝 Prompt] --> B[🤖 Gemini AI]
-    B --> C[📜 Script + Scenes]
-    C --> D[🎙️ Edge TTS]
-    C --> E[🖼️ Pexels / Replicate]
-    D --> F[🎬 MoviePy Compiler]
+    A[🎯 Viral Format / Topic] --> B[🤖 Gemini 2.5 Flash]
+    B --> C[📜 Script + Subscriber CTA]
+    C --> D[🎙️ Edge TTS Speech]
+    C --> E[🎥 Pexels 9:16 Footage]
+    D --> F[🎬 MoviePy Renderer]
     E --> F
-    F --> G[📺 Final MP4]
-    G --> H{Upload?}
-    H -->|Yes| I[📤 YouTube]
-    H -->|No| J[💾 Local Library]
+    F --> G[📺 Final 1080x1920 Short]
+    G --> H{Auto Publish?}
+    H -->|Yes| I[📤 YouTube Shorts API]
+    H -->|No| J[💾 Local Studio Library]
 ```
 
-**Step-by-step:**
-1. **Prompt** → User enters a topic or uses an AI suggestion
-2. **Script** → Gemini generates a multi-scene script with hooks, narration, and visual cues
-3. **Assets** → TTS audio per scene + stock footage from Pexels (or AI-generated via Replicate)
-4. **Compile** → MoviePy assembles scenes with animated subtitles, transitions, and audio mixing
-5. **Output** → 9:16 vertical video (1080×1920) saved locally
-6. **Publish** → Optional one-click upload to YouTube with metadata
+---
 
 ## 🛠️ Tech Stack
 
 ### Backend
-| Technology | Purpose |
-|---|---|
-| [FastAPI](https://fastapi.tiangolo.com/) | REST API framework |
-| [Uvicorn](https://www.uvicorn.org/) | ASGI server |
-| [MoviePy 2.0](https://zulko.github.io/moviepy/) | Video editing & compilation |
-| [Edge TTS](https://github.com/rany2/edge-tts) | Text-to-speech narration |
-| [Google Gemini](https://ai.google.dev/) | AI script & idea generation |
-| [Pexels API](https://www.pexels.com/api/) | Stock footage & images |
-| [Replicate](https://replicate.com/) | AI image & video generation |
-| [YouTube Data API v3](https://developers.google.com/youtube) | Channel analytics & upload |
-| [SQLite](https://www.sqlite.org/) | Local persistent database |
-| [Pillow](https://pillow.readthedocs.io/) | Image processing |
+- **FastAPI**: Asynchronous Python API framework
+- **MoviePy 2.0 & ImageMagick**: 9:16 vertical rendering, clip splicing, and subtitle overlays
+- **Edge TTS**: Multi-speaker neural text-to-speech engine
+- **Google Gemini 2.5 Flash**: High-speed AI script generation and YouTube SEO metadata optimization
+- **YouTube Data API v3**: Authenticated channel analytics and video publishing
+- **SQLite**: Local database for duplicate shields, automation worker state, and video history
 
 ### Frontend
-| Technology | Purpose |
-|---|---|
-| [React 19](https://react.dev/) | UI framework |
-| [Vite 8](https://vitejs.dev/) | Build tool & dev server |
-| [TypeScript 6](https://www.typescriptlang.org/) | Type-safe JavaScript |
-| [Tailwind CSS 3](https://tailwindcss.com/) | Utility-first styling |
-| [React Router 7](https://reactrouter.com/) | Client-side routing |
-
-## 📸 Screenshots
-
-> Launch the app with `start.bat` and navigate to `http://localhost:5173` to see the dashboard, video studio, story editor, and more.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is part of the [PKU-YuanGroup/Helios](https://github.com/PKU-YuanGroup/Helios) ecosystem.
+- **React 19 & Vite 8**: Ultra-fast component rendering and HMR
+- **TypeScript**: Full type safety
+- **Tailwind CSS 3**: Dark glassmorphism UI system
 
 ---
 
-<div align="center">
+## 📄 License
 
-**Built with ❤️ using AI-first development**
-
-</div>
+Distributed under the MIT License. Built with ❤️ for automated YouTube channel growth.
