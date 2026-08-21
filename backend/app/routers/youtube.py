@@ -42,6 +42,15 @@ def get_channel_info():
         raise HTTPException(status_code=500, detail=stats["error"])
     return stats
 
+@router.get("/all-shorts")
+def get_all_channel_shorts():
+    """Retrieves all uploaded Shorts across the user's YouTube channel with full pagination."""
+    if not youtube_service.is_authenticated():
+        raise HTTPException(status_code=401, detail="YouTube account is not authenticated. Please log in first.")
+    
+    shorts = youtube_service.fetch_all_channel_shorts()
+    return {"shorts": shorts, "total": len(shorts)}
+
 @router.post("/upload")
 def upload_to_youtube(req: UploadRequest):
     """Publishes a compiled video directly to the user's channel as a Short."""

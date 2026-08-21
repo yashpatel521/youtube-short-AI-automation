@@ -49,26 +49,67 @@ export default function DeleteShorts() {
   const fetchChannelShorts = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${backendUrl}/api/youtube/channel`);
-      if (res.ok) {
-        const data = await res.json();
-        const recentShorts: ShortItem[] = (data.recent_shorts || []).map((s: any) => ({
+      // 1. Fetch ALL live YouTube Shorts with pagination
+      let fetchedShorts: ShortItem[] = [];
+      const resAll = await fetch(`${backendUrl}/api/youtube/all-shorts`);
+      
+      if (resAll.ok) {
+        const dataAll = await resAll.json();
+        fetchedShorts = (dataAll.shorts || []).map((s: any) => ({
           id: s.id || s.video_id,
           title: s.title || 'Untitled Short',
           thumbnail: s.thumbnail || s.thumbnail_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80',
           views: s.views || 0,
           likes: s.likes || 0,
           comments: s.comments || 0,
-          published_at: s.published_at || s.created_at || new Date().toISOString(),
+          published_at: s.published_at || s.publishedAt || new Date().toISOString(),
           duration: s.duration || 30,
-          privacy: s.privacy || s.status || 'public',
-          filename: s.filename || s.video_filename
+          privacy: s.privacy || 'public',
+          filename: s.filename
         }));
-        setShorts(recentShorts);
       } else {
-        // Fallback sample list if channel info fails or offline
-        setShorts(getSampleShorts());
+        // Fallback to /api/youtube/channel
+        const resChannel = await fetch(`${backendUrl}/api/youtube/channel`);
+        if (resChannel.ok) {
+          const dataChannel = await resChannel.json();
+          fetchedShorts = (dataChannel.recent_shorts || []).map((s: any) => ({
+            id: s.id || s.video_id,
+            title: s.title || 'Untitled Short',
+            thumbnail: s.thumbnail || s.thumbnail_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80',
+            views: s.views || 0,
+            likes: s.likes || 0,
+            comments: s.comments || 0,
+            published_at: s.published_at || s.created_at || new Date().toISOString(),
+            duration: s.duration || 30,
+            privacy: s.privacy || 'public',
+            filename: s.filename || s.video_filename
+          }));
+        }
       }
+
+      // 2. Fetch local DB history to merge local video filenames
+      try {
+        const resHistory = await fetch(`${backendUrl}/api/video/history`);
+        if (resHistory.ok) {
+          const histData = await resHistory.json();
+          const historyItems = histData.history || [];
+          
+          // Map youtube_id to local filename
+          const ytToFilename: Record<string, string> = {};
+          historyItems.forEach((h: any) => {
+            if (h.youtube_id) ytToFilename[h.youtube_id] = h.filename;
+          });
+
+          fetchedShorts = fetchedShorts.map(s => ({
+            ...s,
+            filename: s.filename || ytToFilename[s.id] || `${s.id}.mp4`
+          }));
+        }
+      } catch (e) {
+        console.warn('Could not merge local video history:', e);
+      }
+
+      setShorts(fetchedShorts.length > 0 ? fetchedShorts : getSampleShorts());
     } catch (err) {
       console.error('Error fetching YouTube shorts:', err);
       setShorts(getSampleShorts());

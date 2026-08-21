@@ -200,6 +200,95 @@ class YouTubeService:
         except Exception as e:
             return {"error": f"Failed to fetch channel statistics: {str(e)}"}
 
+    def fetch_all_channel_shorts(self, max_results: int = 500) -> List[Dict[str, Any]]:
+        """Fetches ALL uploaded Shorts on the user's YouTube channel with full pagination."""
+        if not self.is_authenticated():
+            print("[YouTube Service] Not authenticated. Returning empty shorts list.")
+            return []
+
+        try:
+            youtube = self.get_client()
+            channels_response = youtube.channels().list(part="contentDetails", mine=True).execute()
+            if not channels_response.get("items"):
+                return []
+
+            uploads_playlist_id = channels_response["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+            
+            video_ids = []
+            next_page_token = None
+            
+            while len(video_ids) < max_results:
+                res = youtube.playlistItems().list(
+                    part="contentDetails",
+                    playlistId=uploads_playlist_id,
+                    maxResults=min(50, max_results - len(video_ids)),
+                    pageToken=next_page_token
+                ).execute()
+                
+                items = res.get("items", [])
+                for item in items:
+                    video_ids.append(item["contentDetails"]["videoId"])
+                    
+                next_page_token = res.get("nextPageToken")
+                if not next_page_token:
+                    break
+
+            if not video_ids:
+                return []
+
+            shorts = []
+            # Process in chunks of 50 for videos().list API
+            for i in range(0, len(video_ids), 50):
+                chunk = video_ids[i:i+50]
+                videos_response = youtube.videos().list(
+                    part="snippet,statistics,contentDetails,status",
+                    id=",".join(chunk)
+                ).execute()
+
+                for item in videos_response.get("items", []):
+                    duration_str = item["contentDetails"]["duration"]
+                    seconds = 0
+                    if "M" in duration_str:
+                        parts = duration_str.split("M")
+                        minutes = int(parts[0].replace("PT", ""))
+                        seconds += minutes * 60
+                        if "S" in parts[1]:
+                            seconds += int(parts[1].replace("S", ""))
+                    elif "S" in duration_str:
+                        seconds += int(duration_str.replace("PT", "").replace("S", ""))
+
+                    thumbs = item["snippet"].get("thumbnails", {})
+                    thumb_url = (
+                        thumbs.get("maxres", {}).get("url") or
+                        thumbs.get("high", {}).get("url") or
+                        thumbs.get("medium", {}).get("url") or
+                        thumbs.get("default", {}).get("url", "")
+                    )
+
+                    status_info = item.get("status", {})
+                    privacy = status_info.get("privacyStatus", "public")
+
+                    shorts.append({
+                        "id": item["id"],
+                        "title": item["snippet"]["title"],
+                        "description": item["snippet"]["description"],
+                        "publishedAt": item["snippet"]["publishedAt"],
+                        "published_at": item["snippet"]["publishedAt"],
+                        "views": int(item["statistics"].get("viewCount", 0)),
+                        "likes": int(item["statistics"].get("likeCount", 0)),
+                        "comments": int(item["statistics"].get("commentCount", 0)),
+                        "duration": seconds,
+                        "privacy": privacy,
+                        "thumbnail": thumb_url,
+                        "tags": item["snippet"].get("tags", []),
+                        "categoryId": item["snippet"].get("categoryId", "24")
+                    })
+
+            return shorts
+        except Exception as e:
+            print(f"[YouTube Service] Error fetching all channel shorts: {e}")
+            return []
+
     def search_public_shorts(self, keyword: str) -> List[Dict[str, Any]]:
         """Scrapes public YouTube search results for Shorts without needing OAuth."""
         import requests
