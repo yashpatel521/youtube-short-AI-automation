@@ -22,10 +22,10 @@ interface ViralAnalyticsProps {
   backendUrl: string;
   channelData: any;
   onNavigate: (tab: any) => void;
-  youtubeAuthenticated: boolean;
+  youtubeAuthenticated?: boolean;
 }
 
-export default function ViralAnalytics({ backendUrl, channelData, onNavigate, youtubeAuthenticated }: ViralAnalyticsProps) {
+export default function ViralAnalytics({ backendUrl, channelData, onNavigate }: ViralAnalyticsProps) {
   const [report, setReport] = useState<AnalyticsReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

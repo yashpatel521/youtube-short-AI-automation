@@ -98,6 +98,32 @@ class AnalyticsRequest(BaseModel):
 
 class AnalyticsShortsSuggestion(BaseModel):
     title: str = Field(description="Attention-grabbing title for the new Short.")
+
+class CommentSettingsRequest(BaseModel):
+    is_enabled: Optional[bool] = None
+    check_interval_minutes: Optional[int] = None
+    ai_tone: Optional[str] = None
+    include_cta: Optional[bool] = None
+    cta_text: Optional[str] = None
+
+class CommentRuleRequest(BaseModel):
+    name: str
+    keyword: str
+    reply_mode: str = "ai" # "ai", "template", "ai_with_cta"
+    template_text: Optional[str] = ""
+    is_active: bool = True
+
+class CommentReplyPostRequest(BaseModel):
+    comment_id: str
+    reply_text: str
+    rule_id: Optional[int] = None
+
+class GenerateAIReplyRequest(BaseModel):
+    comment_text: str
+    video_title: str
+    tone: Optional[str] = "Enthusiastic & Friendly"
+    cta_text: Optional[str] = None
+
     concept: str = Field(description="The underlying concept or storyline.")
     hook: str = Field(description="The opening 2-second scroll-stopping hook.")
     pexels_query: str = Field(description="2-3 word search query for stock backgrounds.")

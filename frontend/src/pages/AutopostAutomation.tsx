@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 interface AutomationLog {
   id: number;
@@ -19,9 +19,9 @@ interface ProcessedVideo {
 
 export default function AutopostAutomation() {
   const [running, setRunning] = useState(false);
-  const [keywords, setKeywords] = useState('');
+  const [_keywords, setKeywords] = useState('');
   const [lastKeyword, setLastKeyword] = useState('');
-  const [intervalMin, setIntervalMin] = useState(10);
+  const [_intervalMin, setIntervalMin] = useState(10);
   const [logs, setLogs] = useState<AutomationLog[]>([]);
   const [processed, setProcessed] = useState<ProcessedVideo[]>([]);
   

@@ -1,9 +1,13 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import json
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 from app.config import GEMINI_API_KEY
+
+class CommentReplyResponse(BaseModel):
+    reply_text: str = Field(description="A concise, highly engaging, YouTube comment reply under 200 characters with relevant emojis.")
+    sentiment: str = Field(description="Estimated sentiment of the original comment: Positive, Neutral, Negative, Question, or Request.")
 
 class VideoMetadataResponse(BaseModel):
     tags: List[str] = Field(description="A list of 10 to 15 optimized, search-friendly tags/keywords for this YouTube Short.")
@@ -212,6 +216,12 @@ Return the structured response matching the ShortsAnalysisReport schema.
                 "Focus on hilarious everyday situations, sarcastic life advice, or unexpected comedy punchlines.\n"
                 "HOOK (0-3s): Laugh-out-loud relatable POV hook.\n"
                 "ENDING & SUBSCRIBER CTA: Comedic punchline + CTA: 'Subscribe for daily laughs.'"
+            ),
+            "meme_reaction": (
+                "FORMAT: Current Viral Meme Content & Relatable Meme Reactions.\n"
+                "Focus on popular viral meme trends, internet culture humor, funny relatable POV meme situations, and comedic commentary.\n"
+                "HOOK (0-3s): Instant viral meme hook (e.g. 'POV: You try to do a simple task at 2 AM and the universe chooses violence...').\n"
+                "ENDING & SUBSCRIBER CTA: Hilarious meme punchline or relatable reaction + CTA: 'Comment your reaction and subscribe for daily viral memes! 🎭'"
             ),
             "mind_bending_facts": (
                 "FORMAT: Mind-Bending Cosmic & Human Anomalies.\n"
@@ -571,15 +581,18 @@ Generate the VideoMetadataResponse JSON. Make tags highly relevant to search tra
             "unsolved mysteries chilling",
             "impossible survival choices",
             "mind bending what if scenarios",
-            "disturbing ocean mysteries"
+            "disturbing ocean mysteries",
+            "viral funny pov meme trend",
+            "relatable meme comedy moments",
+            "current viral meme reaction"
         ]
         if not client:
             return fallback
 
         prompt = """
-You are an expert YouTube Shorts Algorithm Growth Strategist.
+You are an expert YouTube Shorts Algorithm Growth Strategist & Viral Meme Culture Analyst.
 Generate 5 high-converting, viral search keywords/topics for YouTube Shorts right now.
-Focus on high-retention viral niches (e.g. dark history secrets, dark psychology tricks, unsolved mysteries, impossible survival choices, mind-bending what if scenarios, scary plot twists).
+Must include a mix of high-retention viral niches AND current trending viral meme content, hilarious relatable POV meme concepts, trending internet humor, dark history secrets, dark psychology tricks, and shocking plot twists.
 
 Return the structured response matching the TrendingKeywordsResponse schema.
 """
@@ -601,6 +614,72 @@ Return the structured response matching the TrendingKeywordsResponse schema.
             print(f"Error generating trending keywords via Gemini: {e}")
 
         return fallback
+
+    def generate_comment_reply(
+        self,
+        comment_text: str,
+        video_title: str,
+        tone: str = "Enthusiastic & Friendly",
+        cta_text: Optional[str] = None,
+        api_key_override: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Generates a personalized, engaging YouTube comment reply using Gemini 2.5 Flash.
+        """
+        client = self._get_client(api_key_override)
+        
+        # Smart fallback if AI client unavailable
+        fallback_reply = f"Thanks for watching! Glad you enjoyed the Short! 🙌"
+        if "part 2" in comment_text.lower():
+            fallback_reply = "Part 2 is coming super soon! Make sure to subscribe so you don't miss it! 🚀"
+        elif "how to" in comment_text.lower() or "make" in comment_text.lower():
+            fallback_reply = "We create these Shorts using AI tools! Stay tuned for full creator tutorials! 🎬✨"
+        
+        if cta_text and cta_text.strip():
+            fallback_reply = f"{fallback_reply} {cta_text.strip()}"
+
+        if not client:
+            return {"reply_text": fallback_reply, "sentiment": "Positive"}
+
+        prompt = f"""
+You are an engaging, popular YouTube Shorts creator responding to a fan's comment on your video.
+
+Video Title: "{video_title}"
+User Comment: "{comment_text}"
+Desired Tone: "{tone}"
+
+Requirements:
+1. Write a punchy, warm, and natural reply in under 200 characters.
+2. Match the specified tone ("{tone}").
+3. Include 1-2 relevant emojis to boost community engagement.
+4. Keep it friendly and scroll-stopping.
+{"5. Attach this subtle call-to-action naturally at the end: '" + cta_text.strip() + "'" if cta_text and cta_text.strip() else ""}
+
+Return the response matching the CommentReplyResponse schema.
+"""
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=CommentReplyResponse,
+                    temperature=0.7,
+                ),
+            )
+            data = json.loads(response.text)
+            reply = data.get("reply_text", "").strip()
+            if reply:
+                return {
+                    "reply_text": reply,
+                    "sentiment": data.get("sentiment", "Positive")
+                }
+        except Exception as e:
+            print(f"Error generating comment reply via Gemini: {e}")
+
+        return {"reply_text": fallback_reply, "sentiment": "Positive"}
+
+
 
 
 

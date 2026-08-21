@@ -525,3 +525,174 @@ class YouTubeService:
         except Exception as e:
             print(f"[YouTube Thumbnail] Failed to upload thumbnail: {e}")
             return False
+
+    def fetch_channel_comments(self, max_results: int = 50) -> List[Dict[str, Any]]:
+        """Fetches top-level comments across channel videos via YouTube Data API v3."""
+        if not self.is_authenticated():
+            print("[YouTube Service] Not authenticated. Returning realistic sample comments.")
+            return self._get_sample_comments()
+
+        try:
+            youtube = self.get_client()
+            channels_res = youtube.channels().list(mine=True, part="id").execute()
+            if not channels_res.get("items"):
+                return self._get_sample_comments()
+            
+            channel_id = channels_res["items"][0]["id"]
+
+            response = youtube.commentThreads().list(
+                part="snippet,replies",
+                allThreadsRelatedToChannelId=channel_id,
+                maxResults=max_results,
+                textFormat="plainText"
+            ).execute()
+
+            items = response.get("items", [])
+            comments = []
+            video_ids = list(set([item["snippet"]["videoId"] for item in items if "snippet" in item and "videoId" in item["snippet"]]))
+            
+            video_titles = {}
+            if video_ids:
+                try:
+                    v_res = youtube.videos().list(
+                        part="snippet",
+                        id=",".join(video_ids[:50])
+                    ).execute()
+                    for v in v_res.get("items", []):
+                        video_titles[v["id"]] = v["snippet"]["title"]
+                except Exception as e:
+                    print(f"Error fetching video titles for comments: {e}")
+
+            for item in items:
+                top = item["snippet"]["topLevelComment"]["snippet"]
+                cid = item["snippet"]["topLevelComment"]["id"]
+                vid = item["snippet"]["videoId"]
+                
+                # Check if channel owner already replied in thread
+                replies = item.get("replies", {}).get("comments", [])
+                has_owner_reply = any(
+                    r["snippet"].get("authorChannelId", {}).get("value") == channel_id
+                    for r in replies
+                )
+
+                comments.append({
+                    "comment_id": cid,
+                    "video_id": vid,
+                    "video_title": video_titles.get(vid, "YouTube Short"),
+                    "author_name": top.get("authorDisplayName", "Anonymous"),
+                    "author_profile_image": top.get("authorProfileImageUrl", ""),
+                    "comment_text": top.get("textDisplay", ""),
+                    "published_at": top.get("publishedAt", ""),
+                    "like_count": int(top.get("likeCount", 0)),
+                    "total_reply_count": int(item["snippet"].get("totalReplyCount", 0)),
+                    "has_owner_reply": has_owner_reply
+                })
+
+            return comments if comments else self._get_sample_comments()
+        except Exception as e:
+            print(f"[YouTube Service] Error fetching comments from API: {e}. Falling back to sample comments.")
+            return self._get_sample_comments()
+
+    def post_comment_reply(self, comment_id: str, reply_text: str) -> Dict[str, Any]:
+        """Posts a reply to a top-level comment using YouTube Data API v3."""
+        if not self.is_authenticated() or comment_id.startswith("mock_"):
+            print(f"[YouTube Service] Mock replying to comment {comment_id}: '{reply_text}'")
+            return {"success": True, "reply_id": f"reply_mock_{comment_id}"}
+
+        try:
+            youtube = self.get_client()
+            response = youtube.comments().insert(
+                part="snippet",
+                body={
+                    "snippet": {
+                        "parentId": comment_id,
+                        "textOriginal": reply_text
+                    }
+                }
+            ).execute()
+            return {"success": True, "reply_id": response.get("id")}
+        except Exception as e:
+            print(f"[YouTube Service] Error posting comment reply: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _get_sample_comments(self) -> List[Dict[str, Any]]:
+        """Returns realistic sample comments for testing and offline demo mode."""
+        return [
+            {
+                "comment_id": "mock_comment_101",
+                "video_id": "short_dark_history_1",
+                "video_title": "5 Creepy Dark History Facts You Never Learned in School 🤫",
+                "author_name": "Alex Carter",
+                "author_profile_image": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&q=80",
+                "comment_text": "Bro part 2 when??? This history fact at the end blew my mind! 🔥",
+                "published_at": "2026-08-19T10:15:00Z",
+                "like_count": 42,
+                "total_reply_count": 0,
+                "has_owner_reply": False
+            },
+            {
+                "comment_id": "mock_comment_102",
+                "video_id": "short_psychology_2",
+                "video_title": "Dark Psychology Hack to Know if Someone is Lying 🧠",
+                "author_name": "Sarah Miller",
+                "author_profile_image": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80",
+                "comment_text": "how to make videos like this? What AI program do you use?",
+                "published_at": "2026-08-19T09:30:00Z",
+                "like_count": 19,
+                "total_reply_count": 0,
+                "has_owner_reply": False
+            },
+            {
+                "comment_id": "mock_comment_103",
+                "video_id": "short_would_you_rather_3",
+                "video_title": "Would You Rather: Infinite Wealth or 100 Years in Space? 🚀",
+                "author_name": "David Chen",
+                "author_profile_image": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=80&q=80",
+                "comment_text": "Definitely Option A! Infinite wealth lets me build my own spaceship anyway 😂",
+                "published_at": "2026-08-19T08:45:00Z",
+                "like_count": 88,
+                "total_reply_count": 0,
+                "has_owner_reply": False
+            },
+            {
+                "comment_id": "mock_comment_104",
+                "video_id": "short_reddit_twist_4",
+                "video_title": "My Roommate Kept Leaving Notes Until I Found This Under the Floorboards 😱",
+                "author_name": "Elena Rostova",
+                "author_profile_image": "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=80&q=80",
+                "comment_text": "Subscribed! Can you make one about mysterious ocean creatures next please?",
+                "published_at": "2026-08-19T07:10:00Z",
+                "like_count": 15,
+                "total_reply_count": 0,
+                "has_owner_reply": False
+            },
+            {
+                "comment_id": "mock_comment_105",
+                "video_id": "short_sci_fi_5",
+                "video_title": "What If Jupiter Suddenly Disappeared From Our Solar System? 🌌",
+                "author_name": "Marcus Vance",
+                "author_profile_image": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=80&q=80",
+                "comment_text": "Is this scientific fact or just hypothetical speculation? Great video overall!",
+                "published_at": "2026-08-19T06:20:00Z",
+                "like_count": 31,
+                "total_reply_count": 0,
+                "has_owner_reply": False
+            }
+        ]
+
+    def delete_live_video(self, video_id: str) -> Dict[str, Any]:
+        """Permanently deletes a video from the user's YouTube channel via API."""
+        if not self.is_authenticated() or video_id.startswith("mock_"):
+            print(f"[YouTube Service] Mock deleting live video ID: {video_id}")
+            return {"success": True, "message": f"Mock deleted video {video_id}"}
+
+        try:
+            youtube = self.get_client()
+            youtube.videos().delete(id=video_id).execute()
+            print(f"[YouTube Service] Successfully deleted live video {video_id} from YouTube.")
+            return {"success": True, "message": f"Video {video_id} permanently deleted from YouTube."}
+        except Exception as e:
+            print(f"[YouTube Service] Error deleting live video {video_id}: {e}")
+            return {"success": False, "error": str(e)}
+
+

@@ -74,15 +74,6 @@ const COMEDY_FORMATS = [
   },
 ];
 
-const PRESET_FUNNY_PROMPTS = [
-  "Funniest animal fails of the week: Cats vs Physics",
-  "Silly dogs dramatically misjudging distance",
-  "Pets acting like humans when they think nobody is watching",
-  "Trying to follow a complex recipe at 2 AM",
-  "When you accidentally open the front camera",
-  "That one friend who is always 45 minutes late"
-];
-
 export default function FunnyStudio({ backendUrl, channelData: _channelData, onNavigate }: FunnyStudioProps) {
   const [selectedFormat, setSelectedFormat] = useState('pov');
   const [topic, setTopic] = useState('POV: You try to go to sleep early on a Sunday night');

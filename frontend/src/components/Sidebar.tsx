@@ -20,6 +20,8 @@ const icons = {
   remixer: <Icon><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></Icon>,
   analytics: <Icon><path d="M12 20V10M18 20V4M6 20v-6" /></Icon>,
   funny: <Icon><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></Icon>,
+  comments: <Icon><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></Icon>,
+  trash: <Icon><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></Icon>,
 };
 
 /* ── Nav Sections Configuration ── */
@@ -39,6 +41,8 @@ const NAV_SECTIONS = [
       { id: 'library', label: 'Video Gallery', icon: icons.library, path: '/library' },
       { id: 'queue', label: 'Active Queue', icon: icons.queue, path: '/queue' },
       { id: 'autopost', label: 'Autopost Automation', icon: icons.automation, path: '/autopost' },
+      { id: 'comments', label: 'Auto Reply', icon: icons.comments, path: '/comments' },
+      { id: 'delete_shorts', label: 'Delete Shorts', icon: icons.trash, path: '/delete_shorts' },
     ],
   },
   {

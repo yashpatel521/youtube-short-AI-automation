@@ -78,7 +78,7 @@ body {
   }
 
   .main-column {
-    @apply flex flex-col h-screen flex-1;
+    @apply flex flex-col h-screen flex-1 overflow-y-auto overflow-x-hidden;
     margin-left: var(--sidebar-width);
     transition: margin-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }

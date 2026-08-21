@@ -98,10 +98,25 @@ class AutopostAutomationWorker:
             db_service.add_automation_log(f"Gemini AI dynamically generated search keywords: {', '.join(keywords)}", "INFO")
         except Exception as e:
             db_service.add_automation_log(f"Gemini keyword generation fallback used: {str(e)}", "WARNING")
-            keywords = ["dark history secrets", "dark psychology tricks", "unsolved mysteries chilling", "impossible survival choices", "mind bending what if scenarios"]
+            keywords = ["dark history secrets", "dark psychology tricks", "unsolved mysteries chilling", "impossible survival choices", "mind bending what if scenarios", "viral funny pov meme trend", "relatable meme comedy", "current viral meme reaction"]
             
+        # Include custom user keywords if configured
+        custom_kw_str = db_service.get_automation_state("keywords", "")
+        if custom_kw_str and not custom_kw_str.startswith("✨"):
+            custom_list = [k.strip() for k in custom_kw_str.split(",") if k.strip()]
+            if custom_list:
+                keywords.extend(custom_list)
+
         selected_keyword = random.choice(keywords)
-        selected_style = random.choice(["dark_mystery", "psychology_tricks", "would_you_rather", "sci_fi_what_if", "reddit_story_twist"])
+        selected_style = random.choice([
+            "dark_mystery", 
+            "psychology_tricks", 
+            "would_you_rather", 
+            "sci_fi_what_if", 
+            "reddit_story_twist",
+            "funny_comedy",
+            "meme_reaction"
+        ])
         db_service.set_automation_state("last_keyword", selected_keyword)
         db_service.set_automation_state("last_style", selected_style)
         db_service.add_automation_log(f"Selected Gemini AI niche keyword: '{selected_keyword}' | Viral Style: '{selected_style}'", "INFO")

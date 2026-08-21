@@ -5,7 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import OUTPUT_DIR
 from app.services import db_service, youtube_service
-from app.routers import youtube, video, settings, automation
+from app.services.comment_worker import comment_worker
+from app.routers import youtube, video, settings, automation, comments
 from app.models import (
     ViralIdeasRequest, 
     AutoGeneratePostRequest, 
@@ -34,6 +35,8 @@ app.include_router(settings.router)
 app.include_router(youtube.router)
 app.include_router(video.router)
 app.include_router(automation.router)
+app.include_router(comments.router)
+
 
 # Backward Compatibility Fallbacks for Legacy Ideas Endpoints
 @app.post("/api/viral-ideas")
@@ -114,6 +117,13 @@ def background_upload_worker():
             
         time.sleep(60)
 
-# Start worker thread
+# Start worker threads
 worker_thread = threading.Thread(target=background_upload_worker, daemon=True)
 worker_thread.start()
+
+# Start background comment auto-reply worker
+try:
+    comment_worker.start()
+except Exception as e:
+    print(f"Failed to start comment worker: {e}")
+

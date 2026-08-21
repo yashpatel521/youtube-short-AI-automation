@@ -257,10 +257,7 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
     }
   };
 
-  const handleUseSuggestion = (prompt: string) => {
-    sessionStorage.setItem('generator_prompt', prompt);
-    onNavigate('generator');
-  };
+
 
   const bestVideo = channelData?.recent_shorts ? getBestPerformingVideo(channelData.recent_shorts) : null;
 
@@ -648,7 +645,7 @@ export default function Dashboard({ channelData, loading, onRefresh, onNavigate,
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.04]">
-                      {channelData.recent_shorts.map((video: ShortVideo, idx: number) => {
+                      {channelData.recent_shorts.map((video: ShortVideo, _idx: number) => {
                         const engRate = calculateEngagement(video.likes, video.comments, video.views);
                         const badge = getEngagementBadge(engRate);
                         return (

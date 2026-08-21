@@ -200,3 +200,24 @@ def upload_youtube_thumbnail(req: UploadThumbnailRequest):
     if not success:
         raise HTTPException(status_code=500, detail="Failed to upload thumbnail to YouTube.")
     return {"success": True, "message": "Thumbnail uploaded successfully."}
+
+@router.delete("/videos/{video_id}")
+def delete_live_video(video_id: str):
+    """Permanently deletes a video from live YouTube channel."""
+    if not youtube_service.is_authenticated() and not video_id.startswith("mock_"):
+        raise HTTPException(status_code=401, detail="YouTube client is not authenticated.")
+    
+    res = youtube_service.delete_live_video(video_id)
+    if not res.get("success"):
+        raise HTTPException(status_code=500, detail=res.get("error", "Failed to delete live video"))
+    return res
+
+@router.post("/videos/batch-delete")
+def batch_delete_live_videos(video_ids: list[str] = Body(..., embed=True)):
+    """Permanently deletes multiple videos from live YouTube channel."""
+    results = []
+    for vid in video_ids:
+        res = youtube_service.delete_live_video(vid)
+        results.append({"video_id": vid, "success": res.get("success"), "error": res.get("error")})
+    return {"results": results, "total_deleted": sum(1 for r in results if r["success"])}
+

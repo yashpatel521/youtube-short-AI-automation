@@ -159,6 +159,84 @@ def init_db():
         except Exception:
             pass
 
+        # Comment Auto-Reply Settings table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS comment_auto_reply_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                is_enabled INTEGER DEFAULT 1,
+                check_interval_minutes INTEGER DEFAULT 5,
+                ai_tone TEXT DEFAULT 'Enthusiastic & Friendly',
+                include_cta INTEGER DEFAULT 1,
+                cta_text TEXT DEFAULT 'Thanks for watching! Subscribe for daily viral Shorts! 🔔'
+            )
+        """)
+
+        # Comment Rules table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS comment_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                keyword TEXT,
+                reply_mode TEXT DEFAULT 'ai',
+                template_text TEXT DEFAULT '',
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT
+            )
+        """)
+
+        # Comments History table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS comments_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                comment_id TEXT UNIQUE,
+                video_id TEXT,
+                video_title TEXT,
+                author_name TEXT,
+                author_profile_image TEXT,
+                comment_text TEXT,
+                reply_text TEXT,
+                reply_status TEXT DEFAULT 'pending',
+                replied_at TEXT,
+                rule_id INTEGER,
+                error TEXT,
+                created_at TEXT
+            )
+        """)
+
+        # Seed default auto reply settings if missing
+        cursor = conn.execute("SELECT 1 FROM comment_auto_reply_settings WHERE id = 1")
+        if not cursor.fetchone():
+            conn.execute(
+                "INSERT INTO comment_auto_reply_settings (id, is_enabled, check_interval_minutes, ai_tone, include_cta, cta_text) "
+                "VALUES (1, 1, 5, 'Enthusiastic & Friendly', 1, 'Thanks for watching! Subscribe for daily viral Shorts! 🔔')"
+            )
+
+        # Seed initial sample rules if empty
+        cursor = conn.execute("SELECT 1 FROM comment_rules LIMIT 1")
+        if not cursor.fetchone():
+            conn.execute(
+                "INSERT INTO comment_rules (name, keyword, reply_mode, template_text, is_active, created_at) "
+                "VALUES (?, ?, ?, ?, 1, ?)",
+                (
+                    "Part 2 Request",
+                    "part 2",
+                    "template",
+                    "Part 2 is coming out tomorrow! Make sure you subscribe and turn on notifications so you don't miss it! 🚀",
+                    datetime.datetime.now().isoformat()
+                )
+            )
+            conn.execute(
+                "INSERT INTO comment_rules (name, keyword, reply_mode, template_text, is_active, created_at) "
+                "VALUES (?, ?, ?, ?, 1, ?)",
+                (
+                    "Video Creation Query",
+                    "how to make",
+                    "template",
+                    "We generated this Short using Helios AI Studio! Check our channel description to create your own! 🎬✨",
+                    datetime.datetime.now().isoformat()
+                )
+            )
+
         # 8. Scenes table
         conn.execute("""
             CREATE TABLE IF NOT EXISTS scenes (

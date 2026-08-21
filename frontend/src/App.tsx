@@ -11,6 +11,8 @@ import AutopostAutomation from './pages/AutopostAutomation';
 import ViralRemixer from './pages/ViralRemixer';
 import ViralAnalytics from './pages/ViralAnalytics';
 import FunnyStudio from './pages/FunnyStudio';
+import AutoReplyComments from './pages/AutoReplyComments';
+import DeleteShorts from './pages/DeleteShorts';
 
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 
@@ -21,7 +23,7 @@ export default function App() {
   // Determine active tab dynamically from URL pathname
   const activeTab = (() => {
     const path = location.pathname.replace('/', '');
-    const validTabs = ['dashboard', 'generator', 'library', 'ideas', 'quality', 'settings', 'queue', 'autopost', 'remixer', 'analytics', 'funny_studio'];
+    const validTabs = ['dashboard', 'generator', 'library', 'ideas', 'quality', 'settings', 'queue', 'autopost', 'remixer', 'analytics', 'funny_studio', 'comments', 'delete_shorts'];
     
     // Auto-route to settings page if auth query parameters are present (from YouTube OAuth redirect)
     const params = new URLSearchParams(location.search);
@@ -32,9 +34,9 @@ export default function App() {
       return path as any;
     }
     return 'dashboard';
-  })() as 'dashboard' | 'generator' | 'library' | 'ideas' | 'quality' | 'settings' | 'queue' | 'autopost' | 'remixer' | 'analytics' | 'funny_studio';
+  })() as 'dashboard' | 'generator' | 'library' | 'ideas' | 'quality' | 'settings' | 'queue' | 'autopost' | 'remixer' | 'analytics' | 'funny_studio' | 'comments' | 'delete_shorts';
 
-  const setActiveTab = (tab: 'dashboard' | 'generator' | 'library' | 'ideas' | 'quality' | 'settings' | 'queue' | 'autopost' | 'remixer' | 'analytics' | 'funny_studio') => {
+  const setActiveTab = (tab: 'dashboard' | 'generator' | 'library' | 'ideas' | 'quality' | 'settings' | 'queue' | 'autopost' | 'remixer' | 'analytics' | 'funny_studio' | 'comments' | 'delete_shorts') => {
     navigate(`/${tab}`);
   };
 
@@ -280,6 +282,12 @@ export default function App() {
               channelData={channelData}
               onNavigate={setActiveTab}
             />
+          } />
+          <Route path="/comments" element={
+            <AutoReplyComments />
+          } />
+          <Route path="/delete_shorts" element={
+            <DeleteShorts />
           } />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
