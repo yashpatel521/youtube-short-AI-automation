@@ -223,6 +223,24 @@ Return the structured response matching the ShortsAnalysisReport schema.
                 "HOOK (0-3s): Instant viral meme hook (e.g. 'POV: You try to do a simple task at 2 AM and the universe chooses violence...').\n"
                 "ENDING & SUBSCRIBER CTA: Hilarious meme punchline or relatable reaction + CTA: 'Comment your reaction and subscribe for daily viral memes! 🎭'"
             ),
+            "geopolitical_news": (
+                "FORMAT: Breaking Geopolitical News & World Power Shifts (High Engagement Storytelling, NOT dry facts!).\n"
+                "Focus on intense global power moves, breaking international conflicts, military alliance shifts, trade wars, sanctions, or secret diplomatic maneuvers.\n"
+                "HOOK (0-3s): High-urgency geopolitical shock hook (e.g. 'What just happened at the global summit in the last 24 hours is changing world power forever...').\n"
+                "ENDING & SUBSCRIBER CTA: High-suspense world prediction + CTA: 'Subscribe for daily breaking geopolitical news updates. 🌍'"
+            ),
+            "trading_financial": (
+                "FORMAT: Trending Trading News, Market Shocks & Crypto Surges (Not dry facts!).\n"
+                "Focus on breaking market trends, Wall Street shocks, crypto price surges/crashes, Federal Reserve rate decisions, tech stock wars, or wealth strategies.\n"
+                "HOOK (0-3s): Intense financial urgency hook (e.g. 'If you hold Crypto or Tech stocks today, this emergency market alert changes everything...').\n"
+                "ENDING & SUBSCRIBER CTA: Urgent market takeaway + CTA: 'Comment your price target and subscribe for daily trading news alerts! 📈'"
+            ),
+            "meme_news": (
+                "FORMAT: Latest Viral Meme News, Internet Pop Culture Drama & Sarcastic Hot Takes (Not dry facts!).\n"
+                "Focus on breaking viral internet drama, trending X/TikTok memes, celebrity viral chaos, funny AI meme trends, and sarcastic comedic commentary.\n"
+                "HOOK (0-3s): Scroll-stopping viral meme news hook (e.g. 'The internet is currently losing its mind over this unbelievable viral drama...').\n"
+                "ENDING & SUBSCRIBER CTA: Hilarious meme hot take + CTA: 'Comment your reaction and subscribe for daily internet meme news! 🔥'"
+            ),
             "mind_bending_facts": (
                 "FORMAT: Mind-Bending Cosmic & Human Anomalies.\n"
                 "Focus on unbelievable secrets about the universe, human body, or high tech that shock the brain.\n"
@@ -576,12 +594,16 @@ Generate the VideoMetadataResponse JSON. Make tags highly relevant to search tra
         """
         client = self._get_client(api_key_override)
         fallback = [
+            "latest geopolitical news breaking",
+            "trending trading market shock",
+            "viral meme news internet drama",
+            "crypto trading price surge alert",
+            "world power shift geopolitical tension",
             "dark history secrets",
             "dark psychology tricks",
             "unsolved mysteries chilling",
             "impossible survival choices",
             "mind bending what if scenarios",
-            "disturbing ocean mysteries",
             "viral funny pov meme trend",
             "relatable meme comedy moments",
             "current viral meme reaction"
@@ -590,9 +612,16 @@ Generate the VideoMetadataResponse JSON. Make tags highly relevant to search tra
             return fallback
 
         prompt = """
-You are an expert YouTube Shorts Algorithm Growth Strategist & Viral Meme Culture Analyst.
+You are an expert YouTube Shorts Algorithm Growth Strategist, Geopolitical News Analyst, Financial Trader, & Meme Culture Expert.
 Generate 5 high-converting, viral search keywords/topics for YouTube Shorts right now.
-Must include a mix of high-retention viral niches AND current trending viral meme content, hilarious relatable POV meme concepts, trending internet humor, dark history secrets, dark psychology tricks, and shocking plot twists.
+
+CRITICAL INSTRUCTIONS:
+- Do NOT just generate dry static facts!
+- Focus on HIGH-RETENTION, ENGAGING BREAKING CONTENT & STORYTELLING across:
+  1. Latest Geopolitical News & World Power Shifts (e.g. global conflicts, trade wars, diplomatic shocks, international power moves).
+  2. Trending Trading & Financial Market News (e.g. crypto surges/crashes, stock market alerts, Federal Reserve rate shocks, Wall Street moves).
+  3. Viral Meme News & Internet Pop Culture Drama (e.g. trending TikTok/X viral memes, hilarious internet chaos, sarcastic hot takes).
+  4. High-suspense hooks and dramatic plot twists.
 
 Return the structured response matching the TrendingKeywordsResponse schema.
 """

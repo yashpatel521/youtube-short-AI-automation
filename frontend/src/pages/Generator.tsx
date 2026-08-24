@@ -355,12 +355,15 @@ export default function Generator({ backendUrl, channelData, settings: _settings
             <label className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Choose Viral Format Style</label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
               {[
+                { id: 'geopolitical_news', name: 'Geopolitical News', icon: '🌍', desc: 'World power shifts & international news' },
+                { id: 'trading_financial', name: 'Trading & Market News', icon: '📈', desc: 'Crypto surges, stocks & financial alerts' },
+                { id: 'meme_news', name: 'Meme & Pop Culture News', icon: '🔥', desc: 'Viral internet drama & meme hot takes' },
                 { id: 'dark_mystery', name: 'Dark History & Mysteries', icon: '🕵️', desc: 'Creepy secrets & ancient anomalies' },
                 { id: 'psychology_tricks', name: 'Dark Psychology Hacks', icon: '🧠', desc: 'Mind games & subconscious tests' },
                 { id: 'would_you_rather', name: 'Would You Rather', icon: '⚔️', desc: 'High-stakes survival dilemmas' },
                 { id: 'sci_fi_what_if', name: 'Sci-Fi What-If', icon: '🌌', desc: 'Hypothetical apocalyptic physics' },
                 { id: 'reddit_story_twist', name: 'Story Plot Twists', icon: '📜', desc: 'Suspense stories with ending twist' },
-                { id: 'funny_comedy', name: 'POV Comedy', icon: '🎭', desc: 'Relatable humor & funny twists' },
+                { id: 'funny_comedy', name: 'POV Comedy & Memes', icon: '🎭', desc: 'Relatable humor & meme reactions' },
               ].map((s) => (
                 <button
                   key={s.id}

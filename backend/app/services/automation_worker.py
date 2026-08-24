@@ -98,7 +98,21 @@ class AutopostAutomationWorker:
             db_service.add_automation_log(f"Gemini AI dynamically generated search keywords: {', '.join(keywords)}", "INFO")
         except Exception as e:
             db_service.add_automation_log(f"Gemini keyword generation fallback used: {str(e)}", "WARNING")
-            keywords = ["dark history secrets", "dark psychology tricks", "unsolved mysteries chilling", "impossible survival choices", "mind bending what if scenarios", "viral funny pov meme trend", "relatable meme comedy", "current viral meme reaction"]
+            keywords = [
+                "latest geopolitical news breaking",
+                "trending trading market shock",
+                "viral meme news internet drama",
+                "crypto trading price surge alert",
+                "world power shift geopolitical tension",
+                "dark history secrets", 
+                "dark psychology tricks", 
+                "unsolved mysteries chilling", 
+                "impossible survival choices", 
+                "mind bending what if scenarios", 
+                "viral funny pov meme trend", 
+                "relatable meme comedy", 
+                "current viral meme reaction"
+            ]
             
         # Include custom user keywords if configured
         custom_kw_str = db_service.get_automation_state("keywords", "")
@@ -109,6 +123,9 @@ class AutopostAutomationWorker:
 
         selected_keyword = random.choice(keywords)
         selected_style = random.choice([
+            "geopolitical_news",
+            "trading_financial",
+            "meme_news",
             "dark_mystery", 
             "psychology_tricks", 
             "would_you_rather", 
