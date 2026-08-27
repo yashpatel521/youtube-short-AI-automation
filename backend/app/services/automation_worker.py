@@ -75,12 +75,11 @@ class AutopostAutomationWorker:
                 # Sleep briefly (1 second) to yield execution and check stop event
                 time.sleep(1)
             else:
-                # Sleep for the configured interval, checking for stop event frequently
-                interval = int(db_service.get_automation_state("interval_seconds", str(self.default_interval)))
-                db_service.add_automation_log(f"No video was processed. Next search cycle in {interval} seconds...", "INFO")
+                # Retrying in 10 seconds if no new video was found
+                retry_interval = 10
+                db_service.add_automation_log(f"No new unprocessed video found across search keywords. Retrying in {retry_interval} seconds...", "INFO")
                 
-                # Sleep in small increments of 1 second so we can shut down immediately on stop request
-                for _ in range(interval):
+                for _ in range(retry_interval):
                     if self._stop_event.is_set() or db_service.get_automation_state("running", "false") != "true":
                         break
                     time.sleep(1)
@@ -99,19 +98,19 @@ class AutopostAutomationWorker:
         except Exception as e:
             db_service.add_automation_log(f"Gemini keyword generation fallback used: {str(e)}", "WARNING")
             keywords = [
-                "latest geopolitical news breaking",
                 "trending trading market shock",
-                "viral meme news internet drama",
                 "crypto trading price surge alert",
+                "viral meme news internet drama",
+                "current viral meme reaction",
+                "relatable meme comedy moments",
+                "latest geopolitical news breaking",
                 "world power shift geopolitical tension",
                 "dark history secrets", 
                 "dark psychology tricks", 
                 "unsolved mysteries chilling", 
                 "impossible survival choices", 
                 "mind bending what if scenarios", 
-                "viral funny pov meme trend", 
-                "relatable meme comedy", 
-                "current viral meme reaction"
+                "viral funny pov meme trend"
             ]
             
         # Include custom user keywords if configured
@@ -121,8 +120,10 @@ class AutopostAutomationWorker:
             if custom_list:
                 keywords.extend(custom_list)
 
-        selected_keyword = random.choice(keywords)
-        selected_style = random.choice([
+        # Shuffle keywords so every niche has equal probability and we don't always pick the same category
+        random.shuffle(keywords)
+
+        all_styles = [
             "geopolitical_news",
             "trading_financial",
             "meme_news",
@@ -133,55 +134,77 @@ class AutopostAutomationWorker:
             "reddit_story_twist",
             "funny_comedy",
             "meme_reaction"
-        ])
-        db_service.set_automation_state("last_keyword", selected_keyword)
-        db_service.set_automation_state("last_style", selected_style)
-        db_service.add_automation_log(f"Selected Gemini AI niche keyword: '{selected_keyword}' | Viral Style: '{selected_style}'", "INFO")
+        ]
 
-
-        # 2. Search for viral competitor Shorts on YouTube
-        db_service.add_automation_log(f"Searching YouTube for viral competitor Shorts matching '{selected_keyword}'...", "INFO")
-        try:
-            competitors = youtube_service.search_competitor_shorts(selected_keyword)
-        except Exception as e:
-            db_service.add_automation_log(f"Failed to query YouTube search: {str(e)}", "ERROR")
-            raise e
-
-        if not competitors:
-            db_service.add_automation_log(f"No competitor Shorts found for '{selected_keyword}'. Skipping cycle.", "WARNING")
-            return False
-
-        # Sort by view count descending if available, otherwise just use order
-        def get_views(item):
-            try:
-                return int(item.get("views", 0))
-            except Exception:
-                return 0
-        competitors.sort(key=get_views, reverse=True)
-
-        # 3. Find first video that hasn't been processed
         target_video = None
-        for comp in competitors:
-            vid_id = comp.get("id")
-            title = comp.get("title")
-            desc = comp.get("description", "")
-            
-            # Check duplicate database states
-            if db_service.is_video_processed(vid_id):
-                continue
-            if db_service.is_video_processed_by_title_or_desc(title, desc):
-                db_service.add_automation_log(f"Skipping video '{title}' - marked as already processed (duplicate title/content filter).", "INFO")
+        selected_keyword = None
+        selected_style = None
+
+        # 2. Iterate through EVERY keyword in the list until an unprocessed video is found
+        for kw in keywords:
+            db_service.add_automation_log(f"Searching YouTube for viral competitor Shorts matching '{kw}'...", "INFO")
+            try:
+                competitors = youtube_service.search_competitor_shorts(kw)
+            except Exception as e:
+                db_service.add_automation_log(f"Failed to query YouTube search for '{kw}': {str(e)}", "WARNING")
                 continue
 
-            target_video = comp
-            break
+            if not competitors:
+                db_service.add_automation_log(f"No competitor Shorts found for '{kw}'. Trying next keyword...", "INFO")
+                continue
+
+            # Sort by view count descending if available
+            def get_views(item):
+                try:
+                    return int(item.get("views", 0))
+                except Exception:
+                    return 0
+            competitors.sort(key=get_views, reverse=True)
+
+            # Find first video for this keyword that hasn't been processed
+            for comp in competitors:
+                vid_id = comp.get("id")
+                title = comp.get("title")
+                desc = comp.get("description", "")
+                
+                # Check duplicate database states
+                if db_service.is_video_processed(vid_id):
+                    continue
+                if db_service.is_video_processed_by_title_or_desc(title, desc):
+                    db_service.add_automation_log(f"Skipping video '{title}' - already processed.", "INFO")
+                    continue
+
+                target_video = comp
+                selected_keyword = kw
+                break
+
+            if target_video:
+                # Match style to selected keyword or select randomly
+                kw_lower = kw.lower()
+                if "geopolitical" in kw_lower or "power shift" in kw_lower:
+                    selected_style = "geopolitical_news"
+                elif "trading" in kw_lower or "market" in kw_lower or "crypto" in kw_lower:
+                    selected_style = "trading_financial"
+                elif "meme" in kw_lower or "comedy" in kw_lower or "reaction" in kw_lower:
+                    selected_style = random.choice(["meme_news", "funny_comedy", "meme_reaction"])
+                elif "psychology" in kw_lower:
+                    selected_style = "psychology_tricks"
+                elif "mystery" in kw_lower or "secrets" in kw_lower:
+                    selected_style = "dark_mystery"
+                else:
+                    selected_style = random.choice(all_styles)
+                break
+            else:
+                db_service.add_automation_log(f"All {len(competitors)} videos for '{kw}' already processed. Trying next keyword...", "INFO")
 
         if not target_video:
-            db_service.add_automation_log(f"All {len(competitors)} viral videos for '{selected_keyword}' in search results are already processed. Skipping.", "WARNING")
+            db_service.add_automation_log("Checked all keywords but found no unprocessed viral videos.", "WARNING")
             return False
 
+        db_service.set_automation_state("last_keyword", selected_keyword)
+        db_service.set_automation_state("last_style", selected_style)
         db_service.add_automation_log(
-            f"Found viral target video: '{target_video['title']}' (ID: {target_video['id']}) with {target_video.get('views', '0')} views.",
+            f"Selected target video: '{target_video['title']}' (ID: {target_video['id']}) | Keyword: '{selected_keyword}' | Style: '{selected_style}'",
             "INFO"
         )
 

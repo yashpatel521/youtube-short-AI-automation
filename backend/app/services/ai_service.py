@@ -594,34 +594,36 @@ Generate the VideoMetadataResponse JSON. Make tags highly relevant to search tra
         """
         client = self._get_client(api_key_override)
         fallback = [
-            "latest geopolitical news breaking",
             "trending trading market shock",
-            "viral meme news internet drama",
             "crypto trading price surge alert",
+            "viral meme news internet drama",
+            "current viral meme reaction",
+            "relatable meme comedy moments",
+            "latest geopolitical news breaking",
             "world power shift geopolitical tension",
             "dark history secrets",
             "dark psychology tricks",
             "unsolved mysteries chilling",
             "impossible survival choices",
             "mind bending what if scenarios",
-            "viral funny pov meme trend",
-            "relatable meme comedy moments",
-            "current viral meme reaction"
+            "viral funny pov meme trend"
         ]
+        random.shuffle(fallback)
         if not client:
             return fallback
 
         prompt = """
-You are an expert YouTube Shorts Algorithm Growth Strategist, Geopolitical News Analyst, Financial Trader, & Meme Culture Expert.
-Generate 5 high-converting, viral search keywords/topics for YouTube Shorts right now.
+You are an expert YouTube Shorts Algorithm Growth Strategist, Geopolitical Analyst, Financial Trader, & Internet Meme Expert.
+Generate 6 high-converting, viral search keywords/topics for YouTube Shorts right now.
 
 CRITICAL INSTRUCTIONS:
-- Do NOT just generate dry static facts!
-- Focus on HIGH-RETENTION, ENGAGING BREAKING CONTENT & STORYTELLING across:
-  1. Latest Geopolitical News & World Power Shifts (e.g. global conflicts, trade wars, diplomatic shocks, international power moves).
-  2. Trending Trading & Financial Market News (e.g. crypto surges/crashes, stock market alerts, Federal Reserve rate shocks, Wall Street moves).
-  3. Viral Meme News & Internet Pop Culture Drama (e.g. trending TikTok/X viral memes, hilarious internet chaos, sarcastic hot takes).
-  4. High-suspense hooks and dramatic plot twists.
+- Do NOT focus on just one single topic or just dry static facts!
+- Provide a DIVERSE, BALANCED MIX of viral search topics across ALL of the following niches:
+  1. Trending Trading & Market News (crypto price moves, stock market shocks, Federal Reserve alerts).
+  2. Viral Meme News & Internet Culture Drama (trending TikTok/X viral memes, funny reactions).
+  3. Latest Geopolitical News & World Events (international power moves, trade wars, diplomatic shifts).
+  4. Dark Psychology & Mind Games (subconscious tricks, human behavior secrets).
+  5. Mind-Bending Science & Hypothetical Scenarios.
 
 Return the structured response matching the TrendingKeywordsResponse schema.
 """
